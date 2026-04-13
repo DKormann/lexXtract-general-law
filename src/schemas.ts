@@ -1,3 +1,7 @@
+
+
+export type JsonData = string | number | boolean | null | JsonData[] | {[key:string]:JsonData}
+
 export type Schema =
 {description?:string} &
 ( {type: "string"}
