@@ -14,7 +14,7 @@ type Taxonomy = {
   name:string,
   description:string,
   itemSchema?:Schema
-  children?: Taxonomy[]
+  children?:Taxonomy[]
   style?: string
 }
 
@@ -30,5 +30,6 @@ type Domain = {
   source: Document[]
   extraction? : Content
 }
+
 
 

@@ -1,4 +1,64 @@
 
+export const body = document.body;
+
+const colorPalette = {
+  light:{
+    color:             "#000",
+    background:        "#fff",
+    red:               "rgb(242, 55, 55)",
+    green:             "rgb(57, 214, 39)",
+    blue:              "rgb(48, 82, 255)",
+    gray:              "#888",
+  },
+  dark:{
+    color:             "#fff",
+    background:        "#000",
+    red:               "rgb(198, 20, 0)",
+    blue:              "rgb(41, 48, 255)",
+    green:             "rgb(0, 185, 19)",
+    gray:              "#565656",
+  }
+}
+
+export const color = {
+  color: "var(--color)",
+  background: "var(--background)",
+  blue: "var(--blue)",
+  red: "var(--red)",
+  green: "var(--green)",
+  gray: "var(--gray)",
+}
+
+
+let styl = document.createElement("style")
+styl.innerHTML = `
+:root {
+  --color: ${colorPalette.dark.color};
+  --background: ${colorPalette.dark.background};
+  --red: ${colorPalette.dark.red};
+  --green: ${colorPalette.dark.green};
+  --blue: ${colorPalette.dark.blue};
+  --gray: ${colorPalette.dark.gray};
+  color: var(--color);
+  background: var(--background);
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --color: ${colorPalette.light.color};
+    --background: ${colorPalette.light.background};
+    --red: ${colorPalette.light.red};
+    --green: ${colorPalette.light.green};
+    --blue: ${colorPalette.light.blue};
+    --gray: ${colorPalette.light.gray};
+  }
+}
+`
+document.head.appendChild(styl)
+
+
+
+
+
 export type htmlKey = 'innerText'|'onclick' | 'oninput' | 'onkeydown' |'children'|'class'|'id'|'contentEditable'|'eventListeners'|'color'|'background' | 'style' | 'placeholder' | 'tabIndex' | 'colSpan'
 
 export const htmlElement = (tag:string, text:string, cls:string = "", args?:Partial<Record<htmlKey, any>>):HTMLElement =>{
@@ -102,7 +162,7 @@ export const borderRadius = (value: string) => style({borderRadius: value})
 export const width = (value: string) => style({width: value})
 export const height = (value: string) => style({height: value})
 export const display = (value: string) => style({display: value})
-export const color = (value: string = "var(--color)") => style({color: value})
+// export const color = (value: string = "var(--color)") => style({color: value})
 export const background = (value: string = "var(--background)") => style({background: value})
 
 export const input:HTMLGenerator<HTMLInputElement> = (...cs)=>{
@@ -166,4 +226,5 @@ export const popup = (...cs:HTMLArg[])=>{
 }
 
 
-export const body = document.body;
+
+

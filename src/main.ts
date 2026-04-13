@@ -9,6 +9,9 @@ const assert = (condition:boolean, message?:string)=>{if (!condition)throw new E
 
 const raise = (msg:string) => {throw new Error(msg)}
 
+
+type x = number
+
 export const storage = browser ?
   localStorage:
   (()=>{

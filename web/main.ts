@@ -1,14 +1,9 @@
 import { request } from "../src/request";
 import { type ExtractionItem, type Schema } from "../src/schemas";
-import { background, body, border, button, div, h1, h2, h3, input, p, padding, popup, pre, span, style, textarea } from "./html";
+import { background, body, border, button, color, div, h1, h2, h3, input, p, padding, popup, pre, span, style, textarea } from "./html";
 
-body.innerHTML = "";
-body.style.margin = "0";
-const color = "#ccc"
 
-body.style.fontFamily = "system-ui, sans-serif";
-body.style.background = "#222"
-body.style.color = color;
+
 
 type document = {
   title:string,
@@ -45,8 +40,8 @@ const showFolder = (folderName:string):HTMLElement=>{
   let area = textarea(
     {
       style:{
-        background:"#222",
-        color,
+        background:color.background,
+        color:color.color,
         width:"80%",
         fontFamily:"monospace",
         padding:"1em",
@@ -108,7 +103,7 @@ const showFolder = (folderName:string):HTMLElement=>{
           style:{
             width:"20%",
             height:"100vh",
-            borderRight: "1px solid "+color
+            borderRight: "1px solid "+color.color
           }
         },
         button(
@@ -149,7 +144,7 @@ let runner = div(
     choose(folders.get(foldername)?.[0]?.title || "...")
     return p(foldername.slice(0,-1), ": ", span(filename,
       style({
-        border:"1px solid "+color,
+        border:"1px solid "+color.color,
         padding:".2em",
         borderRadius:".4em",
         cursor:"pointer",
@@ -159,7 +154,7 @@ let runner = div(
         let pop = popup(
           div(
             {style:{
-              background:"#222",
+              background:color.background,
               padding:"2em",
               borderRadius:"1em",
             }},
@@ -189,7 +184,7 @@ let runner = div(
       result.innerHTML = "running..."
       let response = await request(
         prompt,
-        "anthropic/claude-sonnet-4.5",
+        "anthropic/claude-haiku-4.5",
         {
           argname:"items",
           argschema: schema,
@@ -257,7 +252,6 @@ let viewJsonResults = (json:any[])=>{
 
       ...items.map((x,i)=>div(
       {style:{
-        background:color+"2",
         borderRadius:".4em",
         margin:"1em 0",
         padding:"1em",
@@ -273,7 +267,7 @@ let viewJsonResults = (json:any[])=>{
 let nav = div(
   {
     style:{
-      background:"#aaa",
+      background: color.blue,
       padding:".4em",
       borderRadius:".4em",
       width:"max-content",
@@ -289,7 +283,7 @@ let nav = div(
     return span(
       {
         style:{
-          color: "#222",
+          color: color.color,
           fontWeight:"bolder",
           padding:".2em",
           cursor:"pointer",
