@@ -17,6 +17,7 @@ const treeSchema = (tax:Taxonomy):Schema=>{
 }
 
 const check = (module:Module):void =>{
+  console.log(JSON.stringify(module, null, 2))
   let schema = treeSchema(module.taxonomy)
   if (module.extraction) validate(schema, module.extraction)
   let go = (tax:Taxonomy, data:{[key:string]: JsonData}) =>{
@@ -32,7 +33,7 @@ const check = (module:Module):void =>{
       })
     }
   }
-  go(module.taxonomy, module.extraction as any)
+  if (module.extraction) go(module.taxonomy, module.extraction as any)
 }
 
 export const list_module = () => module_list.get()!
