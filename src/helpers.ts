@@ -1,9 +1,7 @@
-import { Database } from "bun:sqlite"
-import { hash } from "bun"
 import { Role, type ExtractionItem, type Schema } from "./schemas"
 import gdpr from "./gdpr.json"
 
-let browser = typeof Bun == undefined
+let browser = typeof window !== "undefined"
 
 const assert = (condition:boolean, message?:string)=>{if (!condition)throw new Error("Assertion failed" + message?(":"+message) :"")}
 
@@ -12,20 +10,18 @@ const raise = (msg:string) => {throw new Error(msg)}
 export const storage = browser ?
   localStorage:
   (()=>{
-    let db = new Database("storage.db")
-    db.run(`CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY,value TEXT)`)
+    const db = new Map<string, string>()
     return {
-      setItem:(key: string, value: string)=> {db.run("INSERT OR REPLACE INTO kv VALUES (?, ?)", [key, value])},
+      setItem:(key: string, value: string)=> {db.set(key, value)},
       getItem:(key: string): string |undefined => {
-        const row = db.query("SELECT value FROM kv WHERE key = ?").get(key) as string
-        return row ? (row as unknown as {value:string}).value : undefined
+        return db.get(key)
       },
-      clear:()=> {db.run("DELETE FROM kv")}
+      clear:()=> {db.clear()}
     }
   })()
 
 
-const validate = (schema:Schema, object: any)=>{
+export const validate = (schema:Schema, object: any)=>{
   if (object instanceof String)assert (schema.type == "string")
   else if (object instanceof Array){
     if (schema.type != "array") return raise("array expected")
@@ -62,9 +58,9 @@ type ModelResponse = {
 
 
 const cache_func = <T extends Function>  (f:T ):T =>{
-  let fnhash = hash(f.toString())
+  let fnhash = f.toString()
   return (((...args:any[])=>{
-    let key = String(hash(fnhash+JSON.stringify(args)))
+    let key = JSON.stringify([fnhash, args])
     let res = storage.getItem(key)
     if (res) {
       let p = JSON.parse(res) as {async:boolean, value:any}
@@ -121,33 +117,20 @@ export const  request = cache_func((prompt:string, MODEL:string, tool:Tool, _see
   return outp
 })
 
-export const extraction = (article:string, item:ExtractionItem) =>{
 
-
-  const prompt = `You are an expert Legal advisor. Please extract a list of datapoints of the type ${item.name}.
-  
-  ${article}
-  
-  Please extract the relevant Items following this Schema:
-  
-  ${item}
-  
-  Use the respond function to create the Items.`
-
-  return request(
-    prompt,
-    // "openai/gpt-oss-120b",
-    // "anthropic/claude-opus-4.5",
-    "anthropic/claude-haiku-4.5",
-    {
-      name:'respond',
-      description:'use this to create the Role Items',
-      argname:'items',
-      argschema: {type:"array", items:item}
+export type Stored<T> = {
+  get:()=>T|undefined,
+  set:(val:T)=>void
+}
+export const Stored = <T>(key:string, default_value:T):Stored<T> =>{
+  const set = (val:T)=> storage.setItem(key, JSON.stringify(val))
+  if (!storage.getItem(key)) set(default_value)
+  return {
+    get:()=>{
+      let val = storage.getItem(key)
+      if (val) return JSON.parse(val) as T
     },
-    1
-  )
+    set,
+  }
 }
 
-
-// console.log(JSON.stringify(await extraction(gdpr[0]!, Role),null,2))

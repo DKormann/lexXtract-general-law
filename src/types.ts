@@ -1,8 +1,8 @@
 import type { JsonData, Schema } from "./schemas"
 
-type Prompt = string
+export type Prompt = string
 
-type Document = {
+export type Document = {
   type: "txt",
   content:string
 } | {
@@ -10,30 +10,33 @@ type Document = {
   content: ArrayBuffer
 }
 
-type Taxonomy = {
+
+export type Taxonomy = {
   name:string,
   description:string,
-  itemSchema?:Schema
-  children?:Taxonomy[]
+  constraint?: string,
   style?: string
-}
+} & ({itemSchema: Schema} | {children: Taxonomy[]})
 
 
-type Content = {
-  taxonomy: Taxonomy,
-  data: JsonData
-}
-
-type Domain = {
+export type Module = {
   prompt: Prompt
   taxonomy: Taxonomy
   source: Document[]
-  extraction? : Content
+  extraction? : JsonData
 }
 
 
-type App = {
-  domains: Domain[]
-  
+export type App = {
+  [name:string]: Module
 }
+
+export type ETKOM = {
+  modules: {
+    name:string,
+    extraction: JsonData
+  }[]
+}
+
+
 
