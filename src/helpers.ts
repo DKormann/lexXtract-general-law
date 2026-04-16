@@ -120,17 +120,20 @@ export const  request = cache_func((prompt:string, MODEL:string, tool:Tool, _see
 
 export type Stored<T> = {
   get:()=>T|undefined,
-  set:(val:T)=>void
+  set:(val:T)=>void,
+  del:()=>void
 }
 export const Stored = <T>(key:string, default_value:T):Stored<T> =>{
   const set = (val:T)=> storage.setItem(key, JSON.stringify(val))
-  if (!storage.getItem(key)) set(default_value)
+  if (!storage.getItem(key) || storage.getItem(key) === "undefined") set(default_value)
   return {
     get:()=>{
       let val = storage.getItem(key)
+      if (val == undefined || val === "undefined") throw new Error("No value found for key " + key)
       if (val) return JSON.parse(val) as T
     },
     set,
+    del:()=>{storage.setItem(key, undefined as any)}
   }
 }
 

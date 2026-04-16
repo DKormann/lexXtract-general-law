@@ -2,7 +2,6 @@ import { Stored, validate } from "./helpers";
 import type { JsonData, Schema } from "./schemas";
 import type { App, Document, Module, Prompt, Taxonomy } from "./types";
 
-// const app = {} as {[name:string]: Stored<Module>}
 
 const module_list = Stored<string[]>("module_list", []) 
 
@@ -36,27 +35,39 @@ const check = (module:Module):void =>{
   go(module.taxonomy, module.extraction as any)
 }
 
-
 export const list_module = () => module_list.get()!
+
+console.log("modules", list_module())
+
 export const create_module = (
   name:string,
   taxonomy: Taxonomy,
   prompt: Prompt,
   source: Document[],
   extraction? : JsonData
-):Stored<Module> =>{
+) =>{
   if (list_module().includes(name)) throw new Error("Module with this name already exists")
-  let st = Stored<Module>(name, {prompt, taxonomy, source, extraction})
-
-  let res:Stored<Module> = {
-    get:st.get,
-    set:(val:Module)=>{
-      check(val)
-      st.set(val)
-    }
-  }
   module_list.set([...list_module(), name])
-  return res
+  Stored<Module>(name, {prompt, taxonomy, source, extraction})
 }
 
+export const get_module = (name:string): Stored<Module> =>{
+  if (!list_module().includes(name)) throw new Error("Module with this name does not exist")
+  let st = Stored<Module>(name, {} as Module)
+  return {
+    get:()=>{
+      let val = st.get()
+      return val
+    },
+    set:(val:Module)=>{ 
+      check(val)
+      st.set(val)
+    },
+    del:()=>{
+      st.del()
+      let modules = list_module().filter(x=>x!==name)
+      module_list.set(modules)
+    }
+  }
+}
 
