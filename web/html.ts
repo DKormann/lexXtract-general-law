@@ -12,13 +12,15 @@ const colorPalette = {
   },
   dark:{
     color:             "#fff",
-    background:        "#000",
+    background:        "#222",
     red:               "rgb(198, 20, 0)",
     blue:              "rgb(41, 48, 255)",
     green:             "rgb(0, 185, 19)",
     gray:              "#565656",
   }
 }
+
+
 
 export const color = {
   color: "var(--color)",
@@ -123,12 +125,8 @@ export const html = (tag:string, ...cs:HTMLArg[]):HTMLElement=>{
   return htmlElement(tag, "", "", {...args, children})
 }
 
-
 export type HTMLGenerator<T extends HTMLElement = HTMLElement> = (...cs:HTMLArg[]) => T
-
 const newHtmlGenerator = <T extends HTMLElement>(tag:string)=>(...cs:HTMLArg[]):T=>html(tag, ...cs) as T
-
-
 
 export const p:HTMLGenerator<HTMLParagraphElement> = newHtmlGenerator("p")
 export const h1:HTMLGenerator<HTMLHeadingElement> = newHtmlGenerator("h1")
@@ -146,10 +144,7 @@ export const table:HTMLGenerator<HTMLTableElement> = newHtmlGenerator("table")
 export const tr:HTMLGenerator<HTMLTableRowElement> = newHtmlGenerator("tr")
 export const td:HTMLGenerator<HTMLTableCellElement> = newHtmlGenerator("td")
 export const th:HTMLGenerator<HTMLTableCellElement> = newHtmlGenerator("th")
-
 export const canvas:HTMLGenerator<HTMLCanvasElement> = newHtmlGenerator("canvas")
-
-// export const svg:SVGElement = document.createElement("svg");
 
 export const style = (...rules: Record<string, string>[]) => {
   return {style: Object.assign({}, ...rules)}
@@ -162,7 +157,6 @@ export const borderRadius = (value: string) => style({borderRadius: value})
 export const width = (value: string) => style({width: value})
 export const height = (value: string) => style({height: value})
 export const display = (value: string) => style({display: value})
-// export const color = (value: string = "var(--color)") => style({color: value})
 export const background = (value: string = "var(--background)") => style({background: value})
 
 export const input:HTMLGenerator<HTMLInputElement> = (...cs)=>{
@@ -210,12 +204,7 @@ export const popup = (...cs:HTMLArg[])=>{
 
   popupbackground.appendChild(dialogfield);
   document.body.appendChild(popupbackground);
-  popupbackground.onclick = () => {
-    popupbackground.remove();
-  }
-
-
-
+  popupbackground.onclick = () => {popupbackground.remove(); }
 
   dialogfield.onclick = (e) => {
     e.stopPropagation();

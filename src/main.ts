@@ -9,9 +9,6 @@ const assert = (condition:boolean, message?:string)=>{if (!condition)throw new E
 
 const raise = (msg:string) => {throw new Error(msg)}
 
-
-type x = number
-
 export const storage = browser ?
   localStorage:
   (()=>{
@@ -126,9 +123,7 @@ export const  request = cache_func((prompt:string, MODEL:string, tool:Tool, _see
 
 export const extraction = (article:string, item:ExtractionItem) =>{
 
-  console.log("requesting "+item.name+"...")
 
-  
   const prompt = `You are an expert Legal advisor. Please extract a list of datapoints of the type ${item.name}.
   
   ${article}
@@ -155,4 +150,4 @@ export const extraction = (article:string, item:ExtractionItem) =>{
 }
 
 
-console.log(JSON.stringify(await extraction(gdpr[0]!, Role),null,2))
+// console.log(JSON.stringify(await extraction(gdpr[0]!, Role),null,2))
