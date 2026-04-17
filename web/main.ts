@@ -4,16 +4,13 @@ import { Stored } from "../src/helpers";
 import type { Schema } from "../src/schemas";
 import type { Module, Taxonomy } from "../src/types";
 
-import { background, body, button, color, div, h2, h3, height, p, padding, popup, pre, span, style, textarea } from "./html";
+import { background, body, button, color, div, h2, h3, height, p, padding, popup, pre, span, style, textarea, type HTMLArg } from "./html";
 
 let page = div()
 
 body.append(
   div(
     h2("lexxtract", {onclick: ()=>{pick_module()}}),
-    style({
-      fontFamily:"sans-serif",
-    }),
     page
   )
 )
@@ -71,26 +68,26 @@ let new_module = ()=>{
       children:[],
     },
     "module prompt",
-    [],
+    {},
   )
   return name
 }
 
 
-let string_editor = (content:string, update:(s:string)=>void, style:Partial<CSSStyleDeclaration> = {}):HTMLElement=>{
+let string_editor = (content:string, update:(s:string)=>void, tag:(...cs: HTMLArg[])=> HTMLElement = p , style:Partial<CSSStyleDeclaration> = {}):HTMLElement=>{
   let saver = button("save", {onclick: ()=>{update(area.textContent);saver.style.display = "none"}, style:{display:"none", margin:"1em 0"}})
-  let area = p(
+  let area = span(
     content,
     {
       style:{
-        padding:".1em",
+        padding:".2em",
         ...style
       }
     },
     {contentEditable:true,
     oninput:()=>{saver.style.display = "block"}
   });
-  return p(area, saver)
+  return tag(area, saver)
 }
 
 
@@ -103,11 +100,54 @@ const schema_editor = (schema:Schema, update:(s:Schema) => void):HTMLElement=>{
     }catch(e){
       alert("Invalid JSON: " + e)
     }
-  }, {
+  }, p, {
     fontFamily:"monospace",
     whiteSpace:"pre",
   })
   return area
+}
+
+
+const model_picker = p()
+{
+  type Model = string
+  const models = Stored<Model[]>("models", [
+    "openai/gpt-oss-120b",
+    "anthropic/claude-opus-4.5",
+  ])
+  const model = Stored<Model>("model", models.get()![0]!)
+  let but = button(model.get()!, {onclick:()=>{
+    let mkpop = ()=>popup(
+      h2("choose a model"),
+      models.get()!.map(m=>
+      p(
+        button('-', {onclick:()=>{
+          models.set(models.get()!.filter(x=>x!=m))
+          update()
+        }}),
+        mkbutton(m, ()=> {
+          model.set(m);
+          but.textContent = m;
+          pop.remove()
+        })
+      )),
+      button("+add", {onclick:()=>{
+        let name = prompt("choose model")
+        if (!name)return 
+        models.set([...models.get()!, name])
+        update()
+      }})
+    )
+    let update = ()=>{
+      let np = mkpop()
+      pop.replaceWith(np)
+      pop = np
+    }
+    let pop = mkpop()
+
+  }})
+  model_picker.append("Model: ", but)
+
 }
 
 const taxonomy_editor = (tax:Taxonomy, update:(t:Taxonomy)=>void):HTMLElement =>{
@@ -138,7 +178,7 @@ const taxonomy_editor = (tax:Taxonomy, update:(t:Taxonomy)=>void):HTMLElement =>
         }
       )),
       tax.children.map((x,i)=>
-        [button("remove", {onclick:()=>{
+        [button("-", {onclick:()=>{
           tax.children = tax.children.slice(0,i).concat(tax.children.slice(i+1))
           refresh()
         }}),
@@ -173,43 +213,74 @@ let display_module = (name:string)=>{
   let module = get_module(name)
 
   let update = (f:(m:Module)=>Module)=>{module.set(f(module.get()!))}
-  const Prompt = string_editor(module.get()!.prompt, s=>update(m=>({...m, prompt:s})));
+  const Instructions = string_editor(module.get()!.prompt, s=>update(m=>({...m, prompt:s})));
 
-  const Taxonomy = taxonomy_editor(module.get()!.taxonomy, (t)=>update(m=>({...m, taxonomy:t})))
+  let mod = module.get()!
 
-  const Content = div("Not implemented yet")
 
-  let docs = div()
+  const Structure = taxonomy_editor(module.get()!.taxonomy, (t)=>update(m=>({...m, taxonomy:t})))
 
-  
-
-  const Documents = div(
-    module.get()!.source.map((s,i)=>{
-      let content = div({
-        style:{
-          display: "none",
-          whiteSpace:"pre-wrap",
-        }
-      })
-      return [
-        p("Document "+i, {onclick:()=>{
-          if (content.textContent == "" && s.type == "txt") content.textContent = s.content
-          content.style.display = content.style.display == "none" ? "block" : "none"
-        }}),
-        content,
-      ]
-    }),
-    button("+add", {onclick:()=>{
-
-    }})
+  const Agent = div(
+    p(model_picker),
+    mod.extraction
+    ? div("TODO")
+    : button("start extraction")
   )
 
-  const sections : {[key:string]: HTMLElement} = {
-    Prompt,
-    Taxonomy,
-    Content,
-    Documents,
+  let save = ()=>module.set(mod)
+
+
+
+  let docs = div()
+  
+  const Documents = div(docs)
+  {
+    let showdoc = (title:string)=>{
+      let s = mod.source[title]
+      if (s==undefined) throw new Error("no doc of title: "+ title)
+      // console.log(s.content)
+      let de = p(
+        button("-",{onclick:()=>{
+          delete mod.source[title]
+          save()
+          de.remove()
+        }}),
+        string_editor(title, t=>{
+          mod.source[t] = s
+          delete mod.source[title]
+          save()
+        }, span, {fontWeight:"bold", fontSize:"1.1em", cursor:"pointer"}),
+        p(s.type == "txt"? string_editor(s.content,c=>{ 
+          s.content = c
+          save()
+
+        }, p, {
+          whiteSpace:"pre",
+        }) : "PDF"))
+      docs.append(de)
+    }
+
+    Object.keys(mod.source).forEach(showdoc)
+    Documents.append(p("+add", { style:{cursor:"pointer"}, onclick:()=>{
+      let name = 'new doc'
+      let ctr = 0
+      while (name in mod.source) {name = 'new doc ' + ctr ++ }
+      mod.source[name] = {type:'txt', content:'<content>'}
+      save()
+      showdoc(name)
+    }}))
+
   }
+
+
+  const sections : {[key:string]: HTMLElement} = {
+    Instructions,
+    Structure,
+    Documents,
+    Agent,
+  }
+
+  let defaultSection = Agent
 
   let content = div()
 
@@ -223,29 +294,36 @@ let display_module = (name:string)=>{
     content
   )
 
-  let sidebar = div(
+
+  
+
+  let sidebar = div()
+  let renderSideBar = (item:string) => sidebar.replaceChildren(div(
     style({
       display:"flex",
       flexDirection:"column",
-      padding:".5em",
       borderRight:`1px solid ${color.gray}`,
       width:"200px",
       height:"100vh",
     }),
-    ...Object.entries(sections).map(([k,v])=>
-      h3(k, {
+    ...Object.entries(sections).map(([k,v])=>{
+      console.log(k)
+      if (item == k) content.replaceChildren(v)
+      return h3(k, {
         style:{
           cursor:"pointer",
+          margin:0,
+          padding:".4em",
+          ...(item == k ? {
+            background: color.gray,
+          } : {})
         },
-        onclick:()=>{
-          content.replaceChildren(v)
-          console.log(v)
-        }
+        onclick: ()=>renderSideBar(k)
       })
-    )
-  )
+    })
+  ))
+  renderSideBar("Agent")
 
-  content.replaceChildren(Taxonomy)
 
   page.append(
     p( span("module: ",name, { style:{fontSize:"1.2em",fontWeight:"bold" }, onclick: ()=> {pick_module()}}),

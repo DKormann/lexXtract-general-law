@@ -23,7 +23,7 @@ export type Taxonomy = {
 export type Module = {
   prompt: Prompt
   taxonomy: Taxonomy
-  source: Document[]
+  source: {[title:string]:Document}
   extraction? : JsonData
 }
 

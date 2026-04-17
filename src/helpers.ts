@@ -122,7 +122,9 @@ export type Stored<T> = {
   del:()=>void
 }
 export const Stored = <T>(key:string, default_value:T):Stored<T> =>{
-  const set = (val:T)=> storage.setItem(key, JSON.stringify(val))
+  const set = (val:T)=> {
+    console.log(key, JSON.stringify(val, null, 2))
+    storage.setItem(key, JSON.stringify(val))}
   if (!storage.getItem(key) || storage.getItem(key) === "undefined") set(default_value)
   return {
     get:()=>{

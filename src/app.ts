@@ -44,7 +44,7 @@ export const create_module = (
   name:string,
   taxonomy: Taxonomy,
   prompt: Prompt,
-  source: Document[],
+  source: {[name:string]:Document},
   extraction? : JsonData
 ) =>{
   if (list_module().includes(name)) throw new Error("Module with this name already exists")

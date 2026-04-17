@@ -43,6 +43,7 @@ styl.innerHTML = `
   --gray: ${colorPalette.dark.gray};
   color: var(--color);
   background: var(--background);
+  font-family: sans-serif;
 }
 @media (prefers-color-scheme: light) {
   :root {
@@ -97,7 +98,7 @@ export const htmlElement = (tag:string, text:string, cls:string = "", args?:Part
 
 
 
-type HTMLArg = string | number | HTMLElement | Partial<Record<htmlKey, any>>  | Promise<HTMLArg> | HTMLArg[]
+export type HTMLArg = string | number | HTMLElement | Partial<Record<htmlKey, any>>  | Promise<HTMLArg> | HTMLArg[]
 
 
 export const html = (tag:string, ...cs:HTMLArg[]):HTMLElement=>{
@@ -176,8 +177,8 @@ export const popup = (...cs:HTMLArg[])=>{
   const dialogfield = div(
     {
       style: {
-        background: "var(--background-color)",
-        color: "var(--color)",
+        background: color.background,
+        color: color.color,
         padding: "1em",
         paddingBottom: "2em",
         borderRadius: "1em",
