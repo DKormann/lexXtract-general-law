@@ -6,12 +6,16 @@ import type { Module, Taxonomy } from "../src/types";
 
 import { background, body, button, color, div, h2, h3, height, p, padding, popup, pre, span, style, textarea, type HTMLArg } from "./html";
 
-let page = div()
+let page = div({
+})
 
 body.append(
   div(
     h2("lexxtract", {onclick: ()=>{pick_module()}}),
-    page
+    page,
+    {style:{
+      padding:"1em"
+    }}
   )
 )
 
@@ -74,20 +78,32 @@ let new_module = ()=>{
 }
 
 
-let string_editor = (content:string, update:(s:string)=>void, tag:(...cs: HTMLArg[])=> HTMLElement = p , style:Partial<CSSStyleDeclaration> = {}):HTMLElement=>{
-  let saver = button("save", {onclick: ()=>{update(area.textContent);saver.style.display = "none"}, style:{display:"none", margin:"1em 0"}})
-  let area = span(
+let string_editor = (content:string, update:(s:string)=>void, tag:(...cs: HTMLArg[])=> HTMLElement = pre , style:Partial<CSSStyleDeclaration> = {}):HTMLElement=>{
+  let saver = button("save", {onclick: ()=>{
+    let go = (c:Node):string=>{
+      if (c instanceof HTMLBRElement) return "\n"
+      else if (c instanceof Text) return c.textContent
+      let t = Array.from(c.childNodes).map(go).join("")
+      return c instanceof HTMLDivElement ? t + "\n" : t
+    }
+    let content = go(area)
+    update(content);
+    saver.style.display = "none";
+    console.log(content)
+  }, style:{display:"none", margin:"1em 0"}})
+  let area = tag(
     content,
     {
       style:{
         padding:".2em",
+        whiteSpace: "pre",
         ...style
       }
     },
     {contentEditable:true,
     oninput:()=>{saver.style.display = "block"}
   });
-  return tag(area, saver)
+  return span(area, saver)
 }
 
 
@@ -209,14 +225,15 @@ const taxonomy_editor = (tax:Taxonomy, update:(t:Taxonomy)=>void):HTMLElement =>
 let display_module = (name:string)=>{
 
   current_module.set(name)
-  page.innerHTML = ''
   let module = get_module(name)
+  let mod = module.get()!
+  let save = ()=>module.set(mod)
 
   let update = (f:(m:Module)=>Module)=>{module.set(f(module.get()!))}
-  const Instructions = string_editor(module.get()!.prompt, s=>update(m=>({...m, prompt:s})));
-
-  let mod = module.get()!
-
+  const Instructions = string_editor(mod.prompt, s=>{
+    mod.prompt = s
+    save()
+  })
 
   const Structure = taxonomy_editor(module.get()!.taxonomy, (t)=>update(m=>({...m, taxonomy:t})))
 
@@ -224,10 +241,11 @@ let display_module = (name:string)=>{
     p(model_picker),
     mod.extraction
     ? div("TODO")
-    : button("start extraction")
+    : button("start extraction", {onclick:()=>{
+      console.log(mod.prompt)
+    }})
   )
 
-  let save = ()=>module.set(mod)
 
 
 
@@ -238,7 +256,6 @@ let display_module = (name:string)=>{
     let showdoc = (title:string)=>{
       let s = mod.source[title]
       if (s==undefined) throw new Error("no doc of title: "+ title)
-      // console.log(s.content)
       let de = p(
         button("-",{onclick:()=>{
           delete mod.source[title]
@@ -307,7 +324,6 @@ let display_module = (name:string)=>{
       height:"100vh",
     }),
     ...Object.entries(sections).map(([k,v])=>{
-      console.log(k)
       if (item == k) content.replaceChildren(v)
       return h3(k, {
         style:{
@@ -325,8 +341,8 @@ let display_module = (name:string)=>{
   renderSideBar("Agent")
 
 
-  page.append(
-    p( span("module: ",name, { style:{fontSize:"1.2em",fontWeight:"bold" }, onclick: ()=> {pick_module()}}),
+  page.replaceChildren(
+    h3( span("module: ",name, { style:{fontWeight:"bold" }, onclick: ()=> {pick_module()}}),
     mkbutton("edit name",()=>{
       let newname = prompt("New module name", name)
       if (newname) {
@@ -350,7 +366,7 @@ let display_module = (name:string)=>{
         display:"flex",
         flexDirection:"row",
         gap:"2em",
-        padding:"1em"
+
       }),
       sidebar,
       contentbar
