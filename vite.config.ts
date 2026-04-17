@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "/lexXtract_general_law/",
+  base: "/lexXtract-general-law/",
   root: "web",
   publicDir: false,
   build: {
