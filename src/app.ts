@@ -5,7 +5,7 @@ import type { App, Document, Module, Prompt, Taxonomy } from "./types";
 
 const module_list = Stored<string[]>("module_list", []) 
 
-const taxSchema = (tax:Taxonomy):Schema=>{
+export const taxSchema = (tax:Taxonomy):Schema=>{
   if ("itemSchema" in tax){
     return { type:"array", items: tax.itemSchema!}
   }

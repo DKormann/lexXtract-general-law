@@ -51,7 +51,7 @@ function cacheKey(parts: unknown[]): string {
 
 export async function request(promptText: string, model: string, tool: Tool, seed: number) {
   const key = cacheKey([promptText, model, tool, seed]);
-  console.log("Request key:", model);
+
   const cached = storage.getItem(key);
   if (cached) {
     return JSON.parse(cached) as { cost: number; output: unknown };

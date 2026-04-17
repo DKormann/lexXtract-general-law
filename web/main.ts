@@ -1,6 +1,8 @@
 
-import { create_module, get_module, list_module } from "../src/app";
+import { create_module, get_module, list_module, taxSchema } from "../src/app";
+import { extraction } from "../src/extract";
 import { Stored } from "../src/helpers";
+import { request } from "../src/request";
 import type { Schema } from "../src/schemas";
 import type { Module, Taxonomy } from "../src/types";
 
@@ -122,16 +124,16 @@ const schema_editor = (schema:Schema, update:(s:Schema) => void):HTMLElement=>{
   })
   return area
 }
+type Model = string
 
+const models = Stored<Model[]>("models", [
+  "openai/gpt-oss-120b",
+  "anthropic/claude-opus-4.5",
+])
+const model = Stored<Model>("model", models.get()![0]!)
 
 const model_picker = p()
 {
-  type Model = string
-  const models = Stored<Model[]>("models", [
-    "openai/gpt-oss-120b",
-    "anthropic/claude-opus-4.5",
-  ])
-  const model = Stored<Model>("model", models.get()![0]!)
   let but = button(model.get()!, {onclick:()=>{
     let mkpop = ()=>popup(
       h2("choose a model"),
@@ -222,6 +224,14 @@ const taxonomy_editor = (tax:Taxonomy, update:(t:Taxonomy)=>void):HTMLElement =>
   return res
 }
 
+let format = (template:string, data:{[key:string]: string}):string=>{
+  Object.entries(data).forEach(([k,v])=>{
+    if (!template.includes(`{${k}}`)) throw new Error(`Placeholder {${k}} not found in template`)
+    template = template.replaceAll(`{${k}}`, v)
+  })
+  return template
+}
+
 let display_module = (name:string)=>{
 
   current_module.set(name)
@@ -237,15 +247,37 @@ let display_module = (name:string)=>{
 
   const Structure = taxonomy_editor(module.get()!.taxonomy, (t)=>update(m=>({...m, taxonomy:t})))
 
-  const Agent = div(
+
+
+
+
+  let resdiv = pre()
+  
+  const Agent =div(
     p(model_picker),
     mod.extraction
     ? div("TODO")
     : button("start extraction", {onclick:()=>{
-      console.log(mod.prompt)
-    }})
-  )
+      let schema = taxSchema(mod.taxonomy)
 
+      let prompt = format(mod.prompt, {
+        DOCUMENT: Object.entries(mod.source).filter(([key, value])=>value.type == "txt").map(([key, value])=>key+":\n"+value.content).join("\n\n"),
+      })
+
+
+      request(prompt, model.get()!, {
+        name:"respond",
+        description:"respond with extracted items",
+        argname: "items",
+        argschema: schema
+      }, 0).then(r=>{
+        resdiv.textContent = JSON.stringify(r, null, 2)
+
+      })
+      }
+    }),
+    resdiv
+  )
 
 
 
