@@ -73,7 +73,7 @@ let new_module = ()=>{
       description:"the root of the taxonomy",
       children:[],
     },
-    "module prompt",
+    "you are an extraction agent. Extract all relevant information from the following documents:\n\n{DOCUMENT}\n\n",
     {},
   )
   return name
@@ -239,15 +239,16 @@ let display_module = (name:string)=>{
   let mod = module.get()!
   let save = ()=>module.set(mod)
 
-  let update = (f:(m:Module)=>Module)=>{module.set(f(module.get()!))}
+  // let update = (f:(m:Module)=>Module)=>{module.set(f(module.get()!))}
   const Instructions = string_editor(mod.prompt, s=>{
     mod.prompt = s
     save()
   })
 
-  const Structure = taxonomy_editor(module.get()!.taxonomy, (t)=>update(m=>({...m, taxonomy:t})))
-
-
+  const Structure = taxonomy_editor(module.get()!.taxonomy, (t)=>{
+    mod.taxonomy = t
+    save()
+  })
 
 
 
@@ -259,11 +260,14 @@ let display_module = (name:string)=>{
     ? div("TODO")
     : button("start extraction", {onclick:()=>{
       let schema = taxSchema(mod.taxonomy)
+      if (mod.prompt == "") return alert("Prompt cannot be empty")
+      if (Object.keys(mod.source).length == 0) return alert("At least one document is required")
+      if (mod.taxonomy.children.length == 0) return alert("Taxonomy must have at least one field")
+      if (!mod.prompt.includes("{DOCUMENT}")) return alert("Prompt must include {DOCUMENT} placeholder")
 
       let prompt = format(mod.prompt, {
         DOCUMENT: Object.entries(mod.source).filter(([key, value])=>value.type == "txt").map(([key, value])=>key+":\n"+value.content).join("\n\n"),
       })
-
 
       request(prompt, model.get()!, {
         name:"respond",
@@ -272,7 +276,6 @@ let display_module = (name:string)=>{
         argschema: schema
       }, 0).then(r=>{
         resdiv.textContent = JSON.stringify(r, null, 2)
-
       })
       }
     }),
