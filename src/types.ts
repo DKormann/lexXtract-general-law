@@ -15,9 +15,10 @@ export type Taxonomy = {
   name:string,
   description:string,
   constraint?: string,
-  style?: string
-} & ({itemSchema: Schema} | {children: Taxonomy[]})
-
+  style?: string,
+  children: Taxonomy[]
+  itemSchema?: Schema
+}
 
 export type Module = {
   prompt: Prompt

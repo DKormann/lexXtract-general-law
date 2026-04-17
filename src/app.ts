@@ -5,20 +5,20 @@ import type { App, Document, Module, Prompt, Taxonomy } from "./types";
 
 const module_list = Stored<string[]>("module_list", []) 
 
-const treeSchema = (tax:Taxonomy):Schema=>{
+const taxSchema = (tax:Taxonomy):Schema=>{
   if ("itemSchema" in tax){
-    return { type:"array", items: tax.itemSchema}
+    return { type:"array", items: tax.itemSchema!}
   }
   return {
     type:"object",
-    properties: Object.fromEntries(tax.children.map(x=>[x.name, treeSchema(x)])),
+    properties: Object.fromEntries(tax.children.map(x=>[x.name, taxSchema(x)])),
     required: tax.children.map(x=>x.name)
   }
 }
 
 const check = (module:Module):void =>{
   console.log(JSON.stringify(module, null, 2))
-  let schema = treeSchema(module.taxonomy)
+  let schema = taxSchema(module.taxonomy)
   if (module.extraction) validate(schema, module.extraction)
   let go = (tax:Taxonomy, data:{[key:string]: JsonData}) =>{
     if (tax.constraint){
@@ -54,7 +54,8 @@ export const create_module = (
 
 export const get_module = (name:string): Stored<Module> =>{
   if (!list_module().includes(name)) throw new Error("Module with this name does not exist")
-  let st = Stored<Module>(name, {} as Module)
+  let st = Stored<Module>(name, null as any)
+
   return {
     get:()=>{
       let val = st.get()

@@ -13,9 +13,7 @@ export const storage = browser ?
     const db = new Map<string, string>()
     return {
       setItem:(key: string, value: string)=> {db.set(key, value)},
-      getItem:(key: string): string |undefined => {
-        return db.get(key)
-      },
+      getItem:(key: string): string |undefined => db.get(key),
       clear:()=> {db.clear()}
     }
   })()

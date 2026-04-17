@@ -1,6 +1,7 @@
 
 import { create_module, get_module, list_module } from "../src/app";
 import { Stored } from "../src/helpers";
+import type { Schema } from "../src/schemas";
 import type { Module, Taxonomy } from "../src/types";
 
 import { background, body, button, color, div, h2, h3, height, p, padding, popup, pre, span, style, textarea } from "./html";
@@ -59,8 +60,6 @@ let pick_module = ()=>{
   )
 }
 
-
-
 let new_module = ()=>{
   let name = "new_module"
   let ctr = 0
@@ -78,19 +77,37 @@ let new_module = ()=>{
 }
 
 
-let string_editor = (content:string, update:(s:string)=>void):HTMLElement=>{
+let string_editor = (content:string, update:(s:string)=>void, style:Partial<CSSStyleDeclaration> = {}):HTMLElement=>{
   let saver = button("save", {onclick: ()=>{update(area.textContent);saver.style.display = "none"}, style:{display:"none", margin:"1em 0"}})
   let area = p(
     content,
     {
       style:{
         padding:".1em",
+        ...style
       }
     },
     {contentEditable:true,
     oninput:()=>{saver.style.display = "block"}
   });
   return p(area, saver)
+}
+
+
+const schema_editor = (schema:Schema, update:(s:Schema) => void):HTMLElement=>{
+  let area = string_editor(JSON.stringify(schema, null, 2), s=>{
+    try{
+      let parsed = JSON.parse(s)
+      schema = parsed
+      update(parsed)
+    }catch(e){
+      alert("Invalid JSON: " + e)
+    }
+  }, {
+    fontFamily:"monospace",
+    whiteSpace:"pre",
+  })
+  return area
 }
 
 const taxonomy_editor = (tax:Taxonomy, update:(t:Taxonomy)=>void):HTMLElement =>{
@@ -105,8 +122,8 @@ const taxonomy_editor = (tax:Taxonomy, update:(t:Taxonomy)=>void):HTMLElement =>
     string_editor(tax.description, s=> {tax.description = s;refresh()}),
     tax.constraint ? p("constraint: "+tax.constraint) : span(),
     tax.style ? p("style: "+tax.style) : span(),
-    "children" in tax ? div(
-      p("children:", button(
+    div(
+      p("children: ", button(
         " +add",
         {
           onclick: ()=>{
@@ -130,9 +147,19 @@ const taxonomy_editor = (tax:Taxonomy, update:(t:Taxonomy)=>void):HTMLElement =>
           update(tax)
         })]
       ),
-    ) : div(
-      p("item schema:"),
-      JSON.stringify(tax.itemSchema, null, 2)
+    ),
+    
+    p("schema: ",
+      tax.itemSchema? schema_editor(tax.itemSchema, s=>{
+        tax.itemSchema = s
+        refresh()
+      }):
+      button("+add", {
+        onclick:()=>{
+          tax.itemSchema = {type:"string"}
+          refresh()
+        }
+      }) 
     )
   )
   draw()
@@ -150,13 +177,38 @@ let display_module = (name:string)=>{
 
   const Taxonomy = taxonomy_editor(module.get()!.taxonomy, (t)=>update(m=>({...m, taxonomy:t})))
 
-  const Content = div()
+  const Content = div("Not implemented yet")
+
+  let docs = div()
+
+  
+
+  const Documents = div(
+    module.get()!.source.map((s,i)=>{
+      let content = div({
+        style:{
+          display: "none",
+          whiteSpace:"pre-wrap",
+        }
+      })
+      return [
+        p("Document "+i, {onclick:()=>{
+          if (content.textContent == "" && s.type == "txt") content.textContent = s.content
+          content.style.display = content.style.display == "none" ? "block" : "none"
+        }}),
+        content,
+      ]
+    }),
+    button("+add", {onclick:()=>{
+
+    }})
+  )
 
   const sections : {[key:string]: HTMLElement} = {
     Prompt,
     Taxonomy,
     Content,
-    Documents:div()
+    Documents,
   }
 
   let content = div()
