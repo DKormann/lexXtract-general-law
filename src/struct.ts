@@ -1,12 +1,15 @@
+
 import { hash } from "./hash"
 import { validate } from "./helpers"
 
-// export type JsonData = string | number | boolean | null | JsonData[] | {[key:string]:JsonData}
-export type JsonData = string | {[ key: string ]: JsonData}
+
 
 export type Schema =
 ({
   type: "string"
+} | {
+  type: "array",
+  items: Schema
 } | {
   type: "object",
   properties :{[key:string]:Schema},
@@ -16,6 +19,8 @@ export type Schema =
   description?: string
   style: string
 }
+
+export type JsonData = string | {[ key: string ]: JsonData} | JsonData[]
 
 type Hash = string
 type Uname = string
@@ -68,91 +73,58 @@ const localDB:DB= {
   }
 }
 
-type WString = {
-  $: "string",
-  get: ()=>string,
-  set: (s:string)=>void,
-}
 
-type WObj = {
-  $:"object",
-  properties:()=>{[key:string]:Schema},
-  required:()=>string[],
-  additionalProperties?: Schema,
-
-  keys:()=>string[],
-  get: (key:string)=>Writable | undefined,
-  set:(key:string, val?:JsonData)=>void,
-  del:(key:string)=>void
-}
-
-type Writable = (WString | WObj) & {
-  path: Path,
-  onupdate: (f:()=>void)=>void
-}
-
-let user:Secret = {
-  name:"local",
-  secret:"123"
+type Write< $ extends string, T, S> = {
+  $: $,
+  get:()=>T,
+  set:(v:S)=>void,
+  onupdate:(f:()=>void)=>void,
+  schema: Schema
 }
 
 
-const mkWritable = (path: Path, schema: Schema, value?:JsonData): Writable =>{
-  let subscribers: (()=>void)[] = []
-  let broadcast = ()=> subscribers.forEach(f=>f())
-  if (schema.type == "string"){
-    if (value && typeof value != "string") throw new Error("Initial value should be string")
-    let val  = value ?? ""
-    return {
-      $:"string",
-      path,
-      get: () => val,
-      set: (s:string)=>{
-        val = s
-        broadcast()
-      },
-      onupdate: (f)=> subscribers.push(f)
-    }
-  }else if (schema.type == "object"){
+type Wstring = Write<"string", string, string>
+type Warray = Write<"array", Witem[], JsonData[]>
+type Wobject = Write<"object", {[key:string]: Witem}, {[key:string]: JsonData}>
+type Witem = Warray | Wstring | Wobject
 
-    let val : {[key:string]:Writable} = {}
 
-    let set = (key:string, v?:JsonData) => {
-      let sc = (schema.properties && schema.properties[key]) ?? schema.additionalProperties
-      if (!sc) throw new Error(`Key ${key} not allowed in schema`)
-      val[key] = mkWritable({...path, location:[...path.location, key]}, sc, v)
-      broadcast()
-    }
-    if (typeof value != "object") throw new Error("Initial value should be object")
-    Object.entries(value).forEach(([k,v])=>set(k,v))
 
-    return {
-      $:"object",
-      path,
-      properties: () => schema.properties || {},
-      required: () => schema.required || [],
-      additionalProperties: schema.additionalProperties,
-      keys: () => Object.keys(val),
-      get: (key:string)=> val[key],
-      set,
-      del:(key:string)=>{
-        delete val[key]
-        broadcast()
-      },
-      onupdate: subscribers.push
-    }
+
+const Stored = (location:(string|number)[], schema:Schema, content:JsonData):Witem => {
+  validate(schema, content)
+  let subs :(WeakRef<()=>void>)[] = []
+  let onupdate = (f:()=>void)=> subs.push(new WeakRef(f))
+  let update = ()=>{
+    subs = subs.filter(s=>{
+      let f = s.deref()
+      if (f) f()
+      return f
+    })
   }
-  throw new Error("Unsupported schema type")
+  if (schema.type == "string") return { $: "string", onupdate, set:c=>{content = c; update()}, get:()=>content as string, schema }
+  if (schema.type == "array"){
+    let children:Witem[] = []
+    let write = (c:JsonData)=>{
+      content = c
+      children = (content as JsonData[]).map((c, i)=> Stored([...location, i], schema.items, c))
+    }
+    write(content)
+
+    return {$:"array", onupdate, set: c=>{write(c); update()}, get:()=>children, schema}
+  }
+  if (schema.type == "object"){
+    let children:{[key:string]: Witem} = {}
+    let write = (c:{[key:string]: JsonData})=>{
+      Object.entries(c).forEach(([k,v])=>{
+        if (schema.properties[k]) children[k] = Stored([...location, k], schema.properties[k], v)
+      })
+    }
+    write(content as {[key:string]: JsonData})
+    return {$:"object", onupdate, set:(c)=>{write(c); update()}, get:()=>children, schema}
+  }
+  throw new Error("Invalid schema")
 }
 
 
-export const modules : Writable[] = []
-
-
-export type Module = {
-  prompt:string,
-  taxonomy: Schema,
-  source: {[title:string]:string},
-  extraction: Writable
-}
 
