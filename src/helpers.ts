@@ -1,4 +1,5 @@
-import { Role, type ExtractionItem, type Schema } from "./schemas"
+// import { Role, type ExtractionItem, type Schema } from "./schemas"
+import type { Schema } from "./struct"
 import gdpr from "./gdpr.json"
 
 let browser = typeof window !== "undefined"
@@ -22,8 +23,9 @@ export const storage = browser ?
 export const validate = (schema:Schema, object: any)=>{
   if (object instanceof String)assert (schema.type == "string")
   else if (object instanceof Array){
-    if (schema.type != "array") return raise("array expected")
-    object.forEach(x=>validate(schema.items, x))
+    // if (schema.type != "array") return raise("array expected")
+    // object.forEach(x=>validate(schema.items, x))
+    throw new Error("array validation not implemented")
   }else if (object instanceof Object){
     if (schema.type != "object") return raise("not expected object but:" +schema.type)
     Object.entries(object).forEach(([k,v])=>{

@@ -73,3 +73,7 @@ export const get_module = (name:string): Stored<Module> =>{
   }
 }
 
+export class Structure {
+  
+}
+

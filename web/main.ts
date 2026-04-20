@@ -80,6 +80,8 @@ let new_module = ()=>{
 }
 
 
+let F : (x:[string, number]) => [string, number]
+
 let string_editor = (content:string, update:(s:string)=>void, tag:(...cs: HTMLArg[])=> HTMLElement = pre , style:Partial<CSSStyleDeclaration> = {}):HTMLElement=>{
   let saver = button("save", {onclick: ()=>{
     let go = (c:Node):string=>{
