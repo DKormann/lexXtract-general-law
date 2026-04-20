@@ -1,14 +1,12 @@
 
 import { create_module, get_module, list_module, taxSchema } from "../src/app";
-import { extraction } from "../src/extract";
 import { Stored } from "../src/helpers";
 import { request } from "../src/request";
-// import type { Schema } from "../src/schemas";
-import type { Schema } from "../src/struct";
+import type { JsonData, Schema } from "../src/struct";
 import { Mod, type Witem } from "../src/struct";
 import type { Module, Taxonomy } from "../src/types";
 
-import { background, body, button, color, div, h2, h3, height, p, padding, popup, pre, span, style, textarea, type HTMLArg } from "./html";
+import { background, body, border, button, color, div, h2, h3, height, margin, p, padding, popup, pre, span, style, textarea, type HTMLArg } from "./html";
 
 let page = div({
 })
@@ -95,7 +93,6 @@ let string_editor = (content:string, update:(s:string)=>void, tag:(...cs: HTMLAr
     let content = go(area)
     update(content);
     saver.style.display = "none";
-    console.log(content)
   }, style:{display:"none", margin:"1em 0"}})
   let area = tag(
     content,
@@ -236,23 +233,86 @@ let format = (template:string, data:{[key:string]: string}):string=>{
   return template
 }
 
+/** prevents updaters from being garbage collected before htmlelement*/
+let refs = new WeakMap<HTMLElement, ()=>void>()
+
 let modview = (mod:Witem):HTMLElement=>{
+  let editable= false
+  let el = div(style({border:"1px solid "+color.gray}))
+  let up = ()=>{}
+  let get = ():JsonData => ""
   if (mod.$ == "string"){
-    let res = div()
-    let up = ()=>{
-      res.replaceChildren(string_editor(mod.get() as string, s=>{
-        console.log("set")
-        mod.set(s)
-      }))
-      console.log("up")
+    up = ()=>{
+      if (editable){
+        el.replaceChildren(string_editor(mod.get(), s=>mod.set(s)))
+      }
+      else el.replaceChildren(pre(mod.get()))
+    }
+  } else if (mod.$ == "array"){
+    up = ()=>{
+      el.replaceChildren(
+        ...(mod.get() as Witem[]).map((x,i)=> p(
+          i + ":",
+          div(style({paddingLeft:"1em", borderLeft:"1px solid "+color.gray}),
+          modview(x))
+        ))
+      )
+    }
+  } else if (mod.$ == "object"){
+    up = ()=>{
+      el.replaceChildren(
+        ...Object.entries(mod.get() as {[key:string]: Witem}).map(([k,v])=> p(
+          editable?button("-", {onclick:()=>{
+            mod.delkey(k)
+          }}):'',
+          k + ":",
+          div(style({paddingLeft:"1em", borderLeft:"1px solid "+color.gray}),
+          modview(v))
+        )),
+        ...(editable?[button("+add", {onclick:()=>{
+          let key = prompt("field name")
+          if (key) mod.addkey(key)
+        }})]:[])
+      )
+    }
+  }
+  let stopedit = button("save", {onclick : ()=>setedit(false) })
+
+
+  const setedit = (val:boolean)=>{
+    editable = val
+    if (val){
+      stopedit.style.display = "block"
+    }else{
+      stopedit.style.display = "none"
     }
     up()
-    mod.onupdate(up)
-    return div(res)
   }
+  setedit(false)
+  refs.set(el, up)
+  el.addEventListener("click",e=>{
+    e.stopPropagation()
+    if (editable) return
+    let pop = popup(div(
+      style({
+        border:"1px solid "+color.gray,
+        ...color,
+        position:"absolute",
+        left: e.pageX + "px",
+        top: e.pageY + "px",
+      }),
+      p(style({padding:"0.5em", margin:"0"}), "edit", {onclick:()=>{
+        setedit(true)
+        pop.remove()
+      }})
+    ))
+    pop.style.background = "unset"
+  })
+  mod.onupdate(up)
 
-  return div("modview not implemented for type: "+ mod.$)
+  return div(stopedit, el)
 }
+
 
 
 let display_module = (name:string)=>{
@@ -262,7 +322,6 @@ let display_module = (name:string)=>{
   let mod = module.get()!
   let save = ()=>module.set(mod)
 
-  // let update = (f:(m:Module)=>Module)=>{module.set(f(module.get()!))}
   const Instructions = string_editor(mod.prompt, s=>{
     mod.prompt = s
     save()
@@ -272,8 +331,6 @@ let display_module = (name:string)=>{
     mod.taxonomy = t
     save()
   })
-
-
 
   let resdiv = pre()
   
@@ -352,6 +409,24 @@ let display_module = (name:string)=>{
     {type:"string"},
     "hello",
   )
+
+  modu = Mod(
+    ['mymod'],
+    {type:"array", items:{type:"string"}},
+    ["hello", "world"]
+  )
+
+  modu = Mod(
+    ['mymod'],
+    {type:"object", properties:{
+      field1:{type:"string"},
+      field2:{type:"array", items:{type:"string"}}
+    },additionalProperties:{
+      type:"string"
+    }},
+    
+    {field1:"hello", field2:["world", "!!!"]}
+  )
   const Test = div(modview(modu), modview(modu))
 
 
@@ -376,8 +451,6 @@ let display_module = (name:string)=>{
     }),
     content
   )
-
-
   
 
   let sidebar = div()

@@ -20,6 +20,15 @@ export type Schema =
   style?: string
 }
 
+export const fillSchema = (schema:Schema):JsonData=>{
+  if (schema.type == "string") return ""
+  if (schema.type == "array") return []
+  if (schema.type == "object"){
+    return Object.fromEntries((schema.required ?? []).map(k=> [k, fillSchema(schema.properties[k]!)]))
+  }
+  throw new Error("Invalid schema")
+}
+
 export type JsonData = string | {[ key: string ]: JsonData} | JsonData[]
 
 type Hash = string
@@ -85,9 +94,8 @@ type Write< $ extends string, T, S> = {
 
 type Wstring = Write<"string", string, string>
 type Warray = Write<"array", Witem[], JsonData[]>
-type Wobject = Write<"object", {[key:string]: Witem}, {[key:string]: JsonData}>
+type Wobject = Write<"object", {[key:string]: Witem}, {[key:string]: JsonData}> & {delkey:(key:string)=>void, addkey:(key:string)=>void}
 export type Witem = Warray | Wstring | Wobject
-
 
 
 
@@ -122,10 +130,37 @@ export const Mod = (location:(string|number)[], schema:Schema, content:JsonData)
       })
     }
     write(content as {[key:string]: JsonData})
-    return {$:"object", onupdate, set:(c)=>{write(c); update()}, get:()=>children, schema}
+    return {$:"object", onupdate, set:(c)=>{write(c); update()}, get:()=>children, schema, delkey:(key)=>{
+      children = Object.fromEntries(Object.entries(children).filter(e=>e[0]!=key))
+      update()
+      },
+      addkey:(key)=>{
+        let s = schema.properties[key] ?? schema.additionalProperties
+        if (s==undefined) throw new Error("cannot add "+key)
+        let d = fillSchema(s)
+        children[key] = Mod([...location, key],s,d)
+        update()
+      }
+    }
   }
   throw new Error("Invalid schema")
 }
 
 
 
+let test = false
+if (test){
+
+  let Mod0 = Mod(["test"], {type:"array", items:{type:"string"}}, ["hello", "world"])
+
+  console.log(Mod0.get())
+
+  let l1 = (Mod0.get() as Witem[])[1] as Wstring
+  let l2 = (Mod0.get() as Witem[])[1] as Wstring
+
+  l2.onupdate(()=>{
+    console.log("l2 updated to ", l2.get())
+  })
+  l1.set("there")
+
+}
