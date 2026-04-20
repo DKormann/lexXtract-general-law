@@ -3,13 +3,16 @@ import { hash } from "./hash"
 import { storage } from "./helpers"
 
 export type Schema =
-
+{ [key:string]: JsonData} & 
 ({
-  type: undefined,
+  type?: undefined,
   $ref: `#/${string}`
 } | {
-  type: undefined,
+  type?: undefined,
   anyOf: Schema[]
+} | {
+  type?: undefined,
+  const: JsonData
 } | {
   type: "string"
 } | {
@@ -20,6 +23,8 @@ export type Schema =
   properties? :{[key:string]:Schema},
   required?: string[],
   additionalProperties?: Schema
+} | {
+  type?: undefined
 })
 
 
@@ -59,7 +64,7 @@ export const validate = (schema:Schema, object: any)=>{
         assert(ok, "No matching schema in anyOf")
       }else if ("const" in s){
         assert(JSON.stringify(object) == JSON.stringify(s.const), "const mismatch")
-      }else raise("Invalid schema: "+JSON.stringify(s))
+      } else return
     }
     if (typeof object == "string") {assert (s.type == "string")
     } else if (object instanceof Array){
@@ -147,15 +152,40 @@ export const Schema = {
   string: {type:"string"} as Schema,
   object: (properties:{[key:string]:Schema}, required?:string[], additionalProperties?:Schema) =>({type:"object", properties, required, additionalProperties} as Schema),
   record: (valueSchema:Schema)=>({type:"object", additionalProperties:valueSchema} as Schema),
-  array: (items:Schema)=>({type:"array", items})
+  array: (items:Schema)=>({type:"array", items} as Schema),
+  anyOf: (anyOf:Schema[])=>({type:undefined, anyOf} as Schema),
+  const: (value:JsonData)=>({type:undefined, const:value} as Schema),
+  ref: ($ref:string)=>({type:undefined, $ref } as Schema),
+  any: {} as Schema
 }
 
-export const SchemaSchema = {
-  Schema: {
-    anyOf:[
-      
-    ]
-  }
+
+
+export const SchemaSchema : Schema = {
+  Schema: Schema.anyOf([
+    Schema.object({
+      type: Schema.const("string")
+    }, ['type']),
+    Schema.object({
+      type: Schema.const("array"),
+      items: Schema.ref("#/Schema")
+    }, ['type', 'items']),
+    Schema.object({
+      type: Schema.const("object"),
+      properties: Schema.record(Schema.ref("#/Schema")),
+      required: Schema.array(Schema.string),
+    }, ['type']),
+    Schema.object({
+      "$ref": Schema.string
+    }, ['$ref']),
+    Schema.object({
+      anyOf: Schema.array(Schema.ref("#/Schema"))
+    }, ['anyOf']),
+    Schema.object({
+      const: Schema.any
+    }, ['const'])
+  ]),
+  "$ref" : "#/Schema"
 }
 
 
@@ -164,6 +194,7 @@ export const TaxonomySchema:Schema = Schema.object({
     description: Schema.string,
     subCategories: Schema.record(Schema.object({
       description: Schema.string,
+      itemSchema: Schema.any,
     }, ['description', 'itemSchema']))
   }, ['description']))
 }, ['categories'])
