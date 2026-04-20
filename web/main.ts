@@ -29,7 +29,7 @@ let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{
       style:{
         background:color.gray,
         border:"unset",
-        color:color.background,
+        color:color.color,
         padding:"0.5em 1em",
         borderRadius:".3em",
         cursor:"pointer",
@@ -79,8 +79,6 @@ let new_module = ()=>{
   return name
 }
 
-
-let F : (x:[string, number]) => [string, number]
 
 let string_editor = (content:string, update:(s:string)=>void, tag:(...cs: HTMLArg[])=> HTMLElement = pre , style:Partial<CSSStyleDeclaration> = {}):HTMLElement=>{
   let saver = button("save", {onclick: ()=>{
@@ -238,13 +236,17 @@ let refs = new WeakMap<HTMLElement, ()=>void>()
 
 let modview = (mod:Witem):HTMLElement=>{
   let editable= false
-  let el = div(style({border:"1px solid "+color.gray}))
+  let el = div(style({minHeight:"1em"}))
   let up = ()=>{}
-  let get = ():JsonData => ""
+  let stopedit = button("save", {onclick : e=>{setedit(false);e.stopPropagation() } })
+
   if (mod.$ == "string"){
     up = ()=>{
       if (editable){
-        el.replaceChildren(string_editor(mod.get(), s=>mod.set(s)))
+        let ar = textarea()
+        ar.value = mod.get()
+        stopedit.addEventListener("click", e=>{mod.set(ar.value); e.stopPropagation()})
+        el.replaceChildren(ar)
       }
       else el.replaceChildren(pre(mod.get()))
     }
@@ -252,19 +254,30 @@ let modview = (mod:Witem):HTMLElement=>{
     up = ()=>{
       el.replaceChildren(
         ...(mod.get() as Witem[]).map((x,i)=> p(
+          editable?button("-", {onclick:()=>{
+              mod.del(i)
+            },
+            style:{margin:"0 .5em"}
+          }) : '',
           i + ":",
           div(style({paddingLeft:"1em", borderLeft:"1px solid "+color.gray}),
           modview(x))
-        ))
+        )),
+        ...(editable?[button("+add", {onclick:()=>{
+          mod.add()
+        }})]:[])
       )
     }
   } else if (mod.$ == "object"){
+    let req = mod.schema.type == "object" ? mod.schema.required ?? [] : []
     up = ()=>{
       el.replaceChildren(
         ...Object.entries(mod.get() as {[key:string]: Witem}).map(([k,v])=> p(
-          editable?button("-", {onclick:()=>{
-            mod.delkey(k)
-          }}):'',
+          editable ? button("-", {onclick:()=>{
+              mod.delkey(k)
+            },
+            style: {...(req.includes(k))? {color: color.gray, border:"1px solid "+color.gray} : {}, margin:"0 .5em"}
+          }):'',
           k + ":",
           div(style({paddingLeft:"1em", borderLeft:"1px solid "+color.gray}),
           modview(v))
@@ -276,7 +289,6 @@ let modview = (mod:Witem):HTMLElement=>{
       )
     }
   }
-  let stopedit = button("save", {onclick : ()=>setedit(false) })
 
 
   const setedit = (val:boolean)=>{
@@ -421,7 +433,9 @@ let display_module = (name:string)=>{
     {type:"object", properties:{
       field1:{type:"string"},
       field2:{type:"array", items:{type:"string"}}
-    },additionalProperties:{
+    },
+    required:["field1"],
+    additionalProperties:{
       type:"string"
     }},
     
@@ -512,10 +526,24 @@ let display_module = (name:string)=>{
     )
   )
 }
+try{
+  
+  if (!list_module().includes(current_module.get()!)){
+    pick_module()
+  }else{
+    display_module(current_module.get()!)
+  }
+}catch(e){
+  popup(div(
+    style({
+      background:color.background,
+      border:"1px solid "+color.gray,
+      padding:"1em",
+      borderRadius:".4em",
+      color:color.red,
+    }),
+    h2("Error"),
+    p(String(e))
+  ))
 
-
-if (!list_module().includes(current_module.get()!)){
-  pick_module()
-}else{
-  display_module(current_module.get()!)
 }

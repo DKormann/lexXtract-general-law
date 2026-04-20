@@ -93,9 +93,10 @@ type Write< $ extends string, T, S> = {
 
 
 type Wstring = Write<"string", string, string>
-type Warray = Write<"array", Witem[], JsonData[]>
+type Warray = Write<"array", Witem[], JsonData[]> & {del:(i:number)=>void, add:()=>void}
 type Wobject = Write<"object", {[key:string]: Witem}, {[key:string]: JsonData}> & {delkey:(key:string)=>void, addkey:(key:string)=>void}
 export type Witem = Warray | Wstring | Wobject
+
 
 
 
@@ -120,7 +121,7 @@ export const Mod = (location:(string|number)[], schema:Schema, content:JsonData)
     }
     write(content)
 
-    return {$:"array", onupdate, set: c=>{write(c); update()}, get:()=>children, schema}
+    return {$:"array", onupdate, set: c=>{write(c); update()}, get:()=>children, schema, del:(i)=>{children.splice(i, 1); update()}, add:()=>{children.push(Mod([...location, children.length], schema.items, fillSchema(schema.items))); update()}}
   }
   if (schema.type == "object"){
     let children:{[key:string]: Witem} = {}
@@ -131,6 +132,7 @@ export const Mod = (location:(string|number)[], schema:Schema, content:JsonData)
     }
     write(content as {[key:string]: JsonData})
     return {$:"object", onupdate, set:(c)=>{write(c); update()}, get:()=>children, schema, delkey:(key)=>{
+      if (schema.required?.includes(key)) throw new Error("cannot delete required key "+key)
       children = Object.fromEntries(Object.entries(children).filter(e=>e[0]!=key))
       update()
       },
