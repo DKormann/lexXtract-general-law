@@ -227,6 +227,18 @@ export const popup = (...cs:HTMLArg[])=>{
 
 }
 
+export const errorpopup = (e:Error | string) =>
+  popup(div(
+    style({
+      background:color.background,
+      border:"1px solid "+color.gray,
+      padding:"1em",
+      borderRadius:".4em",
+      color:color.red,
+    }),
+    h2("Error"),
+    p(String(e))
+))
 
 
 

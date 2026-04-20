@@ -1,25 +1,15 @@
 
-import { create_module, get_module, list_module, taxSchema } from "../src/app";
 import { Stored } from "../src/helpers";
 import { request } from "../src/request";
 import type { JsonData, Schema } from "../src/struct";
-import { Mod, type Witem } from "../src/struct";
+import { fillSchema, localDB, TaxonomySchema } from "../src/struct";
 import type { Module, Taxonomy } from "../src/types";
-
 import { background, body, border, button, color, div, h2, h3, height, margin, p, padding, popup, pre, span, style, textarea, type HTMLArg } from "./html";
+import { viewer } from "./viewer";
 
 let page = div({
 })
 
-body.append(
-  div(
-    h2("lexxtract", {onclick: ()=>{pick_module()}}),
-    page,
-    {style:{
-      padding:"1em"
-    }}
-  )
-)
 
 let current_module = Stored<string | null>("current_module", null)
 
@@ -39,45 +29,6 @@ let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{
   )
 }
 
-let pick_module = ()=>{
-
-  let pop = popup(
-    div(
-      style({
-        background: color.background,
-        padding: "1em",
-        borderRadius: ".4em",
-      }),
-      h2("Pick a module"),
-      ...list_module().map(x=>
-        p(mkbutton(x, ()=>{
-          display_module(x)
-          pop.remove()
-        }))
-      ),
-      p(mkbutton("+ new module", ()=>{
-        display_module(new_module())
-        pop.remove()
-      }))
-    )
-  )
-}
-
-let new_module = ()=>{
-  let name = "new_module"
-  let ctr = 0
-  while (list_module().includes(name)){ name = "new_module_" + ctr ++ }
-  create_module(name,
-    {
-      name: name+"_taxonomy",
-      description:"the root of the taxonomy",
-      children:[],
-    },
-    "you are an extraction agent. Extract all relevant information from the following documents:\n\n{DOCUMENT}\n\n",
-    {},
-  )
-  return name
-}
 
 
 let string_editor = (content:string, update:(s:string)=>void, tag:(...cs: HTMLArg[])=> HTMLElement = pre , style:Partial<CSSStyleDeclaration> = {}):HTMLElement=>{
@@ -107,22 +58,6 @@ let string_editor = (content:string, update:(s:string)=>void, tag:(...cs: HTMLAr
   return span(area, saver)
 }
 
-
-const schema_editor = (schema:Schema, update:(s:Schema) => void):HTMLElement=>{
-  let area = string_editor(JSON.stringify(schema, null, 2), s=>{
-    try{
-      let parsed = JSON.parse(s)
-      schema = parsed
-      update(parsed)
-    }catch(e){
-      alert("Invalid JSON: " + e)
-    }
-  }, p, {
-    fontFamily:"monospace",
-    whiteSpace:"pre",
-  })
-  return area
-}
 type Model = string
 
 const models = Stored<Model[]>("models", [
@@ -167,61 +102,6 @@ const model_picker = p()
 
 }
 
-const taxonomy_editor = (tax:Taxonomy, update:(t:Taxonomy)=>void):HTMLElement =>{
-
-  let refresh = ()=>{
-    update(tax)
-    draw()
-  }
-  let res = div(style({paddingLeft:"1em",}))
-  let draw = ()=>res.replaceChildren(
-    h3(string_editor(tax.name, s=>{tax.name = s.replaceAll("\n", ' '); refresh()})),
-    string_editor(tax.description, s=> {tax.description = s;refresh()}),
-    tax.constraint ? p("constraint: "+tax.constraint) : span(),
-    tax.style ? p("style: "+tax.style) : span(),
-    div(
-      p("children: ", button(
-        " +add",
-        {
-          onclick: ()=>{
-            name:"new taxonomy"
-            tax.children.push({
-              name: "new taxonomy",
-              description: "empty description",
-              children:[]
-            })
-            refresh()
-          }
-        }
-      )),
-      tax.children.map((x,i)=>
-        [button("-", {onclick:()=>{
-          tax.children = tax.children.slice(0,i).concat(tax.children.slice(i+1))
-          refresh()
-        }}),
-        taxonomy_editor((x), (t)=>{
-          tax.children[i] = t
-          update(tax)
-        })]
-      ),
-    ),
-    
-    p("schema: ",
-      tax.itemSchema? schema_editor(tax.itemSchema, s=>{
-        tax.itemSchema = s
-        refresh()
-      }):
-      button("+add", {
-        onclick:()=>{
-          tax.itemSchema = {type:"string"}
-          refresh()
-        }
-      }) 
-    )
-  )
-  draw()
-  return res
-}
 
 let format = (template:string, data:{[key:string]: string}):string=>{
   Object.entries(data).forEach(([k,v])=>{
@@ -231,319 +111,85 @@ let format = (template:string, data:{[key:string]: string}):string=>{
   return template
 }
 
-/** prevents updaters from being garbage collected before htmlelement*/
-let refs = new WeakMap<HTMLElement, ()=>void>()
 
-let modview = (mod:Witem):HTMLElement=>{
-  let editable= false
-  let el = div(style({minHeight:"1em"}))
-  let up = ()=>{}
-  let stopedit = button("save", {onclick : e=>{setedit(false);e.stopPropagation() } })
-
-  if (mod.$ == "string"){
-    up = ()=>{
-      if (editable){
-        let ar = textarea()
-        ar.value = mod.get()
-        stopedit.addEventListener("click", e=>{mod.set(ar.value); e.stopPropagation()})
-        el.replaceChildren(ar)
-      }
-      else el.replaceChildren(pre(mod.get()))
-    }
-  } else if (mod.$ == "array"){
-    up = ()=>{
-      el.replaceChildren(
-        ...(mod.get() as Witem[]).map((x,i)=> p(
-          editable?button("-", {onclick:()=>{
-              mod.del(i)
-            },
-            style:{margin:"0 .5em"}
-          }) : '',
-          i + ":",
-          div(style({paddingLeft:"1em", borderLeft:"1px solid "+color.gray}),
-          modview(x))
-        )),
-        ...(editable?[button("+add", {onclick:()=>{
-          mod.add()
-        }})]:[])
-      )
-    }
-  } else if (mod.$ == "object"){
-    let req = mod.schema.type == "object" ? mod.schema.required ?? [] : []
-    up = ()=>{
-      el.replaceChildren(
-        ...Object.entries(mod.get() as {[key:string]: Witem}).map(([k,v])=> p(
-          editable ? button("-", {onclick:()=>{
-              mod.delkey(k)
-            },
-            style: {...(req.includes(k))? {color: color.gray, border:"1px solid "+color.gray} : {}, margin:"0 .5em"}
-          }):'',
-          k + ":",
-          div(style({paddingLeft:"1em", borderLeft:"1px solid "+color.gray}),
-          modview(v))
-        )),
-        ...(editable?[button("+add", {onclick:()=>{
-          let key = prompt("field name")
-          if (key) mod.addkey(key)
-        }})]:[])
-      )
-    }
-  }
+let taxonomy = localDB.get("admin", "taxonomy", TaxonomySchema)
+const Taxonomy = viewer(taxonomy)
 
 
-  const setedit = (val:boolean)=>{
-    editable = val
-    if (val){
-      stopedit.style.display = "block"
-    }else{
-      stopedit.style.display = "none"
-    }
-    up()
-  }
-  setedit(false)
-  refs.set(el, up)
-  el.addEventListener("click",e=>{
-    e.stopPropagation()
-    if (editable) return
-    let pop = popup(div(
-      style({
-        border:"1px solid "+color.gray,
-        ...color,
-        position:"absolute",
-        left: e.pageX + "px",
-        top: e.pageY + "px",
-      }),
-      p(style({padding:"0.5em", margin:"0"}), "edit", {onclick:()=>{
-        setedit(true)
-        pop.remove()
-      }})
-    ))
-    pop.style.background = "unset"
-  })
-  mod.onupdate(up)
 
-  return div(stopedit, el)
+const docs = localDB.get("admin", name+".docs", 
+  {type:"object", additionalProperties:{type:"string"} }
+)
+
+const Documents = div(
+  viewer(docs),
+  button("+add",{onclick:()=> docs.get().then(s=>docs.set({"untitled":"", ...(s as {})}))})
+)
+
+let it = localDB.get("admin", "admin.test", {type:"array", items:{type:"string"}})
+it.get().then(d=>console.log("got data", d)).catch(e=>console.log("error getting data", e))
+
+
+
+const sections : {[key:string]: HTMLElement} = {
+  Taxonomy,
+  Documents,
 }
 
+let defaultSection = "Taxonomy"
+
+let content = div()
+
+let contentbar = div(
+  style({
+    display:"flex",
+    flexDirection:"column",
+    gap:"1em",
+    padding:"1em"
+  }),
+  content
+)
 
 
-let display_module = (name:string)=>{
-
-  current_module.set(name)
-  let module = get_module(name)
-  let mod = module.get()!
-  let save = ()=>module.set(mod)
-
-  const Instructions = string_editor(mod.prompt, s=>{
-    mod.prompt = s
-    save()
-  })
-
-  const Structure = taxonomy_editor(module.get()!.taxonomy, (t)=>{
-    mod.taxonomy = t
-    save()
-  })
-
-  let resdiv = pre()
-  
-  const Agent =div(
-    p(model_picker),
-    mod.extraction
-    ? div("TODO")
-    : button("start extraction", {onclick:()=>{
-      let schema = taxSchema(mod.taxonomy)
-      if (mod.prompt == "") return alert("Prompt cannot be empty")
-      if (Object.keys(mod.source).length == 0) return alert("At least one document is required")
-      if (mod.taxonomy.children.length == 0) return alert("Taxonomy must have at least one field")
-      if (!mod.prompt.includes("{DOCUMENT}")) return alert("Prompt must include {DOCUMENT} placeholder")
-
-      let prompt = format(mod.prompt, {
-        // DOCUMENT: Object.entries(mod.source).filter(([key, value])=>value.type == "txt").map(([key, value])=>key+":\n"+value.content).join("\n\n"),
-      })
-
-      request(prompt, model.get()!, {
-        name:"respond",
-        description:"respond with extracted items",
-        argname: "items",
-        argschema: schema
-      }, 0).then(r=>{
-        resdiv.textContent = JSON.stringify(r, null, 2)
-      })
-      }
-    }),
-    resdiv
-  )
-
-
-
-  let docs = div()
-  
-  const Documents = div(docs)
-  {
-    let showdoc = (title:string)=>{
-      let s = mod.source[title]
-      if (s==undefined) throw new Error("no doc of title: "+ title)
-      let de = p(
-        button("-",{onclick:()=>{
-          delete mod.source[title]
-          save()
-          de.remove()
-        }}),
-        string_editor(title, t=>{
-          mod.source[t] = s
-          delete mod.source[title]
-          save()
-        }, span, {fontWeight:"bold", fontSize:"1.1em", cursor:"pointer"}),
-        p(s.type == "txt"? string_editor(s.content,c=>{ 
-          s.content = c
-          save()
-
-        }, p, {
-          whiteSpace:"pre",
-        }) : "PDF"))
-      docs.append(de)
-    }
-
-    Object.keys(mod.source).forEach(showdoc)
-    Documents.append(p("+add", { style:{cursor:"pointer"}, onclick:()=>{
-      let name = 'new doc'
-      let ctr = 0
-      while (name in mod.source) {name = 'new doc ' + ctr ++ }
-      mod.source[name] = {type:'txt', content:'<content>'}
-      save()
-      showdoc(name)
-    }}))
-
-  }
-
-  let modu = Mod(
-    ['mymod'],
-    {type:"string"},
-    "hello",
-  )
-
-  modu = Mod(
-    ['mymod'],
-    {type:"array", items:{type:"string"}},
-    ["hello", "world"]
-  )
-
-  modu = Mod(
-    ['mymod'],
-    {type:"object", properties:{
-      field1:{type:"string"},
-      field2:{type:"array", items:{type:"string"}}
-    },
-    required:["field1"],
-    additionalProperties:{
-      type:"string"
-    }},
-    
-    {field1:"hello", field2:["world", "!!!"]}
-  )
-  const Test = div(modview(modu), modview(modu))
-
-
-  const sections : {[key:string]: HTMLElement} = {
-    Instructions,
-    Structure,
-    Documents,
-    Agent,
-    Test,
-  }
-
-  let defaultSection = Agent
-
-  let content = div()
-
-  let contentbar = div(
-    style({
-      display:"flex",
-      flexDirection:"column",
-      gap:"1em",
-      padding:"1em"
-    }),
-    content
-  )
-  
-
-  let sidebar = div()
-  let renderSideBar = (item:string) => sidebar.replaceChildren(div(
-    style({
-      display:"flex",
-      flexDirection:"column",
-      borderRight:`1px solid ${color.gray}`,
-      width:"200px",
-      height:"100vh",
-    }),
-    ...Object.entries(sections).map(([k,v])=>{
-      if (item == k) content.replaceChildren(v)
-      return h3(k, {
-        style:{
-          cursor:"pointer",
-          margin:0,
-          padding:".4em",
-          ...(item == k ? {
-            background: color.gray,
-          } : {})
-        },
-        onclick: ()=>renderSideBar(k)
-      })
+let sidebar = div()
+let renderSideBar = (item:string) => sidebar.replaceChildren(div(
+  style({
+    display:"flex",
+    flexDirection:"column",
+    borderRight:`1px solid ${color.gray}`,
+    width:"200px",
+    height:"100vh",
+  }),
+  ...Object.entries(sections).map(([k,v])=>{
+    if (item == k) content.replaceChildren(v)
+    return h3(k, {
+      style:{
+        cursor:"pointer",
+        margin:0,
+        padding:".4em",
+        ...(item == k ? {
+          background: color.gray,
+        } : {})
+      },
+      onclick: ()=>renderSideBar(k)
     })
-  ))
-  renderSideBar("Agent")
+  })
+))
+renderSideBar(defaultSection)
 
 
-  page.replaceChildren(
-    h3( span("module: ",name, { style:{fontWeight:"bold" }, onclick: ()=> {pick_module()}}),
-    mkbutton("edit name",()=>{
-      let newname = prompt("New module name", name)
-      if (newname) {
-        let dat = module.get()!;
-        create_module(newname, dat.taxonomy, dat.prompt, dat.source, dat.extraction)
-        module.del()
-        display_module(newname)
-      }
-    }),
+page.replaceChildren(
 
-    mkbutton("switch module",()=>pick_module()),
-    mkbutton("delete module",()=>{
-      if(confirm("Are you sure you want to delete this module?")){
-        module.del()
-        current_module.set(null)
-        pick_module()
-      }
-    })),
-    div(
-      style({
-        display:"flex",
-        flexDirection:"row",
-        gap:"2em",
-
-      }),
-      sidebar,
-      contentbar
-    )
-  )
-}
-try{
-  
-  if (!list_module().includes(current_module.get()!)){
-    pick_module()
-  }else{
-    display_module(current_module.get()!)
-  }
-}catch(e){
-  popup(div(
+  div(
     style({
-      background:color.background,
-      border:"1px solid "+color.gray,
-      padding:"1em",
-      borderRadius:".4em",
-      color:color.red,
-    }),
-    h2("Error"),
-    p(String(e))
-  ))
+      display:"flex",
+      flexDirection:"row",
+      gap:"2em",
 
-}
+    }),
+    sidebar,
+    contentbar
+  )
+)
+
+body.append(page)
