@@ -1,7 +1,7 @@
 import { request } from "./request"
-import type { ExtractionItem } from "./schemas"
+import type { Schema } from "./struct";
 
-export const extraction = (article:string, item:ExtractionItem) =>{
+export const extraction = (article:string, item:Schema) =>{
 
 
   const prompt = `You are an expert Legal advisor. Please extract a list of datapoints of the type ${item.name}.

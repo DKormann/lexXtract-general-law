@@ -3,7 +3,9 @@ import { create_module, get_module, list_module, taxSchema } from "../src/app";
 import { extraction } from "../src/extract";
 import { Stored } from "../src/helpers";
 import { request } from "../src/request";
-import type { Schema } from "../src/schemas";
+// import type { Schema } from "../src/schemas";
+import type { Schema } from "../src/struct";
+import { Mod, type Witem } from "../src/struct";
 import type { Module, Taxonomy } from "../src/types";
 
 import { background, body, button, color, div, h2, h3, height, p, padding, popup, pre, span, style, textarea, type HTMLArg } from "./html";
@@ -234,6 +236,25 @@ let format = (template:string, data:{[key:string]: string}):string=>{
   return template
 }
 
+let modview = (mod:Witem):HTMLElement=>{
+  if (mod.$ == "string"){
+    let res = div()
+    let up = ()=>{
+      res.replaceChildren(string_editor(mod.get() as string, s=>{
+        console.log("set")
+        mod.set(s)
+      }))
+      console.log("up")
+    }
+    up()
+    mod.onupdate(up)
+    return div(res)
+  }
+
+  return div("modview not implemented for type: "+ mod.$)
+}
+
+
 let display_module = (name:string)=>{
 
   current_module.set(name)
@@ -268,7 +289,7 @@ let display_module = (name:string)=>{
       if (!mod.prompt.includes("{DOCUMENT}")) return alert("Prompt must include {DOCUMENT} placeholder")
 
       let prompt = format(mod.prompt, {
-        DOCUMENT: Object.entries(mod.source).filter(([key, value])=>value.type == "txt").map(([key, value])=>key+":\n"+value.content).join("\n\n"),
+        // DOCUMENT: Object.entries(mod.source).filter(([key, value])=>value.type == "txt").map(([key, value])=>key+":\n"+value.content).join("\n\n"),
       })
 
       request(prompt, model.get()!, {
@@ -326,12 +347,20 @@ let display_module = (name:string)=>{
 
   }
 
+  let modu = Mod(
+    ['mymod'],
+    {type:"string"},
+    "hello",
+  )
+  const Test = div(modview(modu), modview(modu))
+
 
   const sections : {[key:string]: HTMLElement} = {
     Instructions,
     Structure,
     Documents,
     Agent,
+    Test,
   }
 
   let defaultSection = Agent

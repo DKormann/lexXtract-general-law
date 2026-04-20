@@ -1,4 +1,4 @@
-import type { Schema } from "./schemas";
+import type { Schema } from "./struct";
 
 type Tool = {
   name: string;

@@ -23,15 +23,14 @@ export const storage = browser ?
 export const validate = (schema:Schema, object: any)=>{
   if (object instanceof String)assert (schema.type == "string")
   else if (object instanceof Array){
-    // if (schema.type != "array") return raise("array expected")
-    // object.forEach(x=>validate(schema.items, x))
-    throw new Error("array validation not implemented")
+    if (schema.type != "array") return raise("array expected")
+    object.forEach(x=>validate(schema.items, x))
   }else if (object instanceof Object){
     if (schema.type != "object") return raise("not expected object but:" +schema.type)
     Object.entries(object).forEach(([k,v])=>{
       let props = schema.properties ?? {}
       if (k in props) validate(props[k]!, v)
-      else assert (schema.additionalProperties != false)
+      else assert (Boolean(schema.additionalProperties))
     })
     if (schema.required) schema.required.forEach(s=>assert(s in object))
   }

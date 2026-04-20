@@ -17,7 +17,7 @@ export type Schema =
   additionalProperties?: Schema
 }) & {
   description?: string
-  style: string
+  style?: string
 }
 
 export type JsonData = string | {[ key: string ]: JsonData} | JsonData[]
@@ -86,16 +86,17 @@ type Write< $ extends string, T, S> = {
 type Wstring = Write<"string", string, string>
 type Warray = Write<"array", Witem[], JsonData[]>
 type Wobject = Write<"object", {[key:string]: Witem}, {[key:string]: JsonData}>
-type Witem = Warray | Wstring | Wobject
+export type Witem = Warray | Wstring | Wobject
 
 
 
 
-const Stored = (location:(string|number)[], schema:Schema, content:JsonData):Witem => {
+export const Mod = (location:(string|number)[], schema:Schema, content:JsonData):Witem => {
   validate(schema, content)
   let subs :(WeakRef<()=>void>)[] = []
   let onupdate = (f:()=>void)=> subs.push(new WeakRef(f))
   let update = ()=>{
+
     subs = subs.filter(s=>{
       let f = s.deref()
       if (f) f()
@@ -107,7 +108,7 @@ const Stored = (location:(string|number)[], schema:Schema, content:JsonData):Wit
     let children:Witem[] = []
     let write = (c:JsonData)=>{
       content = c
-      children = (content as JsonData[]).map((c, i)=> Stored([...location, i], schema.items, c))
+      children = (content as JsonData[]).map((c, i)=> Mod([...location, i], schema.items, c))
     }
     write(content)
 
@@ -117,7 +118,7 @@ const Stored = (location:(string|number)[], schema:Schema, content:JsonData):Wit
     let children:{[key:string]: Witem} = {}
     let write = (c:{[key:string]: JsonData})=>{
       Object.entries(c).forEach(([k,v])=>{
-        if (schema.properties[k]) children[k] = Stored([...location, k], schema.properties[k], v)
+        if (schema.properties[k]) children[k] = Mod([...location, k], schema.properties[k], v)
       })
     }
     write(content as {[key:string]: JsonData})

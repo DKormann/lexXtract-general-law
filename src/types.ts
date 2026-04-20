@@ -1,4 +1,4 @@
-import type { JsonData, Schema } from "./schemas"
+import type { JsonData, Schema } from "./struct"
 
 export type Prompt = string
 
