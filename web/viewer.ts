@@ -3,8 +3,6 @@ import { button, color, div, errorpopup, p, pre, style, textarea } from "./html"
 
 export const jsonView = (d:JsonData):HTMLElement =>{
 
-
-
     return div(
       style({paddingLeft:"0.5em", borderLeft:"2px solid "+color.gray, }),
       (typeof d == "string") ? pre(d) :

@@ -1,7 +1,8 @@
 
+import { db } from "../src/app";
 import { Stored } from "../src/helpers";
 import { request } from "../src/request";
-import type { JsonData, Schema } from "../src/struct";
+import { Schema, type JsonData } from "../src/struct";
 import { fillSchema, localDB, TaxonomySchema } from "../src/struct";
 import type { Module, Taxonomy } from "../src/types";
 import { background, body, border, button, color, div, h2, h3, height, margin, p, padding, popup, pre, span, style, textarea, type HTMLArg } from "./html";
@@ -9,9 +10,6 @@ import { viewer } from "./viewer";
 
 let page = div({
 })
-
-
-let current_module = Stored<string | null>("current_module", null)
 
 let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{
   return button(
@@ -28,8 +26,6 @@ let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{
     }
   )
 }
-
-
 
 let string_editor = (content:string, update:(s:string)=>void, tag:(...cs: HTMLArg[])=> HTMLElement = pre , style:Partial<CSSStyleDeclaration> = {}):HTMLElement=>{
   let saver = button("save", {onclick: ()=>{
@@ -111,89 +107,122 @@ let format = (template:string, data:{[key:string]: string}):string=>{
   return template
 }
 
+let header = h2("lexxtract")
 
-let taxonomy = localDB.get("admin", "taxonomy", TaxonomySchema)
-const Taxonomy = viewer(taxonomy)
-
-
-
-const docs = localDB.get("admin", "docs", 
-  {type:"object", additionalProperties:{type:"string"} }
-)
-
-const Documents = div(
-  viewer(docs),
-  button("+add",{onclick:()=> docs.get().then(s=>docs.set({"untitled":"", ...(s as {})}))})
-)
-
-const prompt_ = localDB.get("admin", "prompt", {type:"string"})
-
-const Prompt = div(
-  viewer(prompt_)
-)
-
-
-
-const sections : {[key:string]: HTMLElement} = {
-  Taxonomy,
-  Documents,
-  Prompt
-}
-
-let defaultSection = "Taxonomy"
-
-let content = div()
-
-let contentbar = div(
-  style({
-    display:"flex",
-    flexDirection:"column",
-    gap:"1em",
-    padding:"1em"
-  }),
-  content
-)
-
-
-let sidebar = div()
-let renderSideBar = (item:string) => sidebar.replaceChildren(div(
-  style({
-    display:"flex",
-    flexDirection:"column",
-    borderRight:`1px solid ${color.gray}`,
-    width:"200px",
-    height:"100vh",
-  }),
-  ...Object.entries(sections).map(([k,v])=>{
-    if (item == k) content.replaceChildren(v)
-    return h3(k, {
-      style:{
-        cursor:"pointer",
-        margin:0,
-        padding:".4em",
-        ...(item == k ? {
-          background: color.gray,
-        } : {})
-      },
-      onclick: ()=>renderSideBar(k)
+let module_list = db.get("modules", Schema.array(Schema.string))
+body.append(
+  header,
+  button("+add module", {onclick:()=>{
+    let name = prompt("Module name")
+    if (!name) return
+    module_list.get().then(mods=>{
+      module_list.set([...mods as string[], name])
+      current_module.set(name)
     })
-  })
-))
-renderSideBar(defaultSection)
+  }}),
+  button("pick module", {
+  onclick:async ()=>{
 
+    let mods = await module_list.get() as string[]
+    let pop = popup(
+      h3("choose a module"),
+      mods.map(m=>{
+        return p(button(m, {onclick:()=>{
+          current_module.set(m)
+          pop.remove()
+        }}))
+      })
+    )
+  }
+}))
 
-page.replaceChildren(
+let current_module = db.get("current_module", Schema.string)
 
-  div(
+current_module.get().then(m=>{
+  if (m) show_module(m as string)
+})
+
+current_module.onupdate(async ()=>{
+  let mod = await current_module.get()
+  if (mod) show_module(mod as string)
+})
+
+const show_module = (mod:string) => {
+
+  let mod_db = (key:string, schema:Schema) => db.get(mod+":"+key, schema)
+
+  let taxonomy = mod_db("taxonomy", TaxonomySchema)
+  const Taxonomy = viewer(taxonomy)
+
+  let documents = mod_db("documents", Schema.record(Schema.string))
+  const Documents = viewer(documents)
+
+  let prompt = mod_db("prompt", Schema.string)
+  const Prompt = viewer(prompt)
+
+  const sections : {[key:string]: HTMLElement} = {
+    Taxonomy,
+    Documents,
+    Prompt
+  }
+
+  let defaultSection = "Taxonomy"
+
+  let content = div()
+
+  let contentbar = div(
     style({
       display:"flex",
-      flexDirection:"row",
-      gap:"2em",
-
+      flexDirection:"column",
+      gap:"1em",
+      padding:"1em"
     }),
-    sidebar,
-    contentbar
+    content
   )
-)
+
+
+  let sidebar = div()
+  let renderSideBar = (item:string) => sidebar.replaceChildren(div(
+    style({
+      display:"flex",
+      flexDirection:"column",
+      borderRight:`1px solid ${color.gray}`,
+      width:"200px",
+      height:"100vh",
+    }),
+    ...Object.entries(sections).map(([k,v])=>{
+      if (item == k) content.replaceChildren(v)
+      return h3(k, {
+        style:{
+          cursor:"pointer",
+          margin:0,
+          padding:".4em",
+          ...(item == k ? {
+            background: color.gray,
+          } : {})
+        },
+        onclick: ()=>renderSideBar(k)
+      })
+    })
+  ))
+  renderSideBar(defaultSection)
+
+
+  header.textContent = "lexxtract : " + mod
+
+  page.replaceChildren(
+    div(
+      style({
+        marginTop:"1em",
+        display:"flex",
+        flexDirection:"row",
+        gap:"2em",
+
+      }),
+      sidebar,
+      contentbar
+    )
+  )
+}
 
 body.append(page)

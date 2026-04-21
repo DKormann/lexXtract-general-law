@@ -102,20 +102,25 @@ export type Stored = {
 }
 
 export type DB = {
-  signup(username:string, password:string):Promise<void>
-  get(owner:string, key:string, schema:Schema): Stored
+  signup(userid:string, password:string):Promise<void>
+  get(key:string, schema:Schema, owner?:string): Stored
 }
 
+let currentUser : {userid: string, password: string} | null = null
+
 export const localDB: DB = {
-  async signup(username: string, password: string) {
-    let users = JSON.parse(storage.getItem("users") ?? "{}") as {[username:string]: string}
-    if (username in users) throw new Error("User already exists")
-    users[username] = hash(password)
+  async signup(userid: string, password: string) {
+    let users = JSON.parse(storage.getItem("users") ?? "{}") as {[userid:string]: string}
+    if (userid in users && users[userid] != hash(password)) throw new Error("user exists")
+    currentUser = {userid, password}
+    users[userid] = hash(password)
     storage.setItem("users", JSON.stringify(users))
   },
   
-  get(owner: string, key: string, schema: Schema): Stored {
-    let data = storage.getItem(owner+"."+key)
+  get(key: string, schema: Schema, owner?: string): Stored {
+    owner = owner ?? currentUser?.userid
+    if (!owner) throw new Error("No user logged in")
+    let data = storage.getItem((owner ?? "default")+"."+key)
     if (!data) {
       data = JSON.stringify(fillSchema(schema))
       storage.setItem(owner+"."+key, data)
@@ -132,6 +137,7 @@ export const localDB: DB = {
         return parsed
       },
       set: async (data: JsonData)=>{
+        if (owner != currentUser?.userid) throw new Error("Cannot set data for another user")
         validate(schema, data)
         parsed = data
         listeners.forEach(l=>l())
@@ -144,8 +150,6 @@ export const localDB: DB = {
   }
 }
 
-await localDB.signup("admin", "admin").catch(()=>{})
-
 
 export const Schema = {
   string: {type:"string"} as Schema,
@@ -157,8 +161,6 @@ export const Schema = {
   ref: ($ref:string)=>({type:undefined, $ref } as Schema),
   any: {} as Schema
 }
-
-
 
 export const SchemaSchema : Schema = {
   Schema: Schema.anyOf([
@@ -186,7 +188,6 @@ export const SchemaSchema : Schema = {
   ]),
   "$ref" : "#/Schema"
 }
-
 
 export const TaxonomySchema:Schema = Schema.object({
   categories: Schema.record(Schema.object({
