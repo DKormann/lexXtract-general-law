@@ -1,11 +1,17 @@
-import { Role, type ExtractionItem, type Schema } from "./schemas"
+// import { Role, type ExtractionItem, type Schema } from "./schemas"
+import type { Schema } from "./struct"
 import gdpr from "./gdpr.json"
 
 let browser = typeof window !== "undefined"
 
-const assert = (condition:boolean, message?:string)=>{if (!condition)throw new Error("Assertion failed" + message?(":"+message) :"")}
 
-const raise = (msg:string) => {throw new Error(msg)}
+let format = (template:string, data:{[key:string]: string}):string=>{
+  Object.entries(data).forEach(([k,v])=>{
+    if (!template.includes(`{${k}}`)) throw new Error(`Placeholder {${k}} not found in template`)
+    template = template.replaceAll(`{${k}}`, v)
+  })
+  return template
+}
 
 export const storage = browser ?
   localStorage:
@@ -19,21 +25,6 @@ export const storage = browser ?
   })()
 
 
-export const validate = (schema:Schema, object: any)=>{
-  if (object instanceof String)assert (schema.type == "string")
-  else if (object instanceof Array){
-    if (schema.type != "array") return raise("array expected")
-    object.forEach(x=>validate(schema.items, x))
-  }else if (object instanceof Object){
-    if (schema.type != "object") return raise("not expected object but:" +schema.type)
-    Object.entries(object).forEach(([k,v])=>{
-      let props = schema.properties ?? {}
-      if (k in props) validate(props[k]!, v)
-      else assert (schema.additionalProperties != false)
-    })
-    if (schema.required) schema.required.forEach(s=>assert(s in object))
-  }
-}
 
 let api_key = storage.getItem("api_key") as string;
 

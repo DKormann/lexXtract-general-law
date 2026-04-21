@@ -9,6 +9,7 @@ const colorPalette = {
     green:             "rgb(57, 214, 39)",
     blue:              "rgb(48, 82, 255)",
     gray:              "#888",
+    lightgray:         "#e5e5e5",
   },
   dark:{
     color:             "#fff",
@@ -17,6 +18,7 @@ const colorPalette = {
     blue:              "rgb(41, 48, 255)",
     green:             "rgb(0, 185, 19)",
     gray:              "#565656",
+    lightgray:         "#414141",
   }
 }
 
@@ -29,6 +31,7 @@ export const color = {
   red: "var(--red)",
   green: "var(--green)",
   gray: "var(--gray)",
+  lightgray: "var(--lightgray)"
 }
 
 
@@ -41,6 +44,7 @@ styl.innerHTML = `
   --green: ${colorPalette.dark.green};
   --blue: ${colorPalette.dark.blue};
   --gray: ${colorPalette.dark.gray};
+  --lightgray: ${colorPalette.dark.lightgray};
   color: var(--color);
   background: var(--background);
   font-family: sans-serif;
@@ -53,6 +57,7 @@ styl.innerHTML = `
     --green: ${colorPalette.light.green};
     --blue: ${colorPalette.light.blue};
     --gray: ${colorPalette.light.gray};
+    --lightgray: ${colorPalette.light.lightgray};
   }
 }
 `
@@ -67,7 +72,16 @@ export type htmlKey = 'innerText'|'onclick' | 'oninput' | 'onkeydown' |'children
 export const htmlElement = (tag:string, text:string, cls:string = "", args?:Partial<Record<htmlKey, any>>):HTMLElement =>{
 
   const _element = document.createElement(tag)
-  _element.innerText = text
+  _element.textContent = text
+  let st = _element.style
+  if (tag == "button"){
+    _element.innerText = text
+    st.color = color.color
+    st.backgroundColor = color.lightgray
+    st.border = "1px solid "+color.color
+    st.borderRadius = ".2em"
+    st.boxShadow = "0 2px 1px "+color.lightgray
+  }
   if (args) Object.entries(args).forEach(([key, value])=>{
     if (key === 'parent'){
       (value as HTMLElement).appendChild(_element)
@@ -78,11 +92,9 @@ export const htmlElement = (tag:string, text:string, cls:string = "", args?:Part
       Object.entries(value as Record<string, (e:Event)=>void>).forEach(([event, listener])=>{
         _element.addEventListener(event, listener)
       })
-    }else if (key === 'color' || key === 'background'){
-      _element.style[key] = value
     }else if (key === 'style'){
-      Object.entries(value as Record<string, string>).forEach(([key, value])=>{
 
+      Object.entries(value as Record<string, string>).forEach(([key, value])=>{
         key = key.replace(/([A-Z])/g, '-$1').toLowerCase();
         _element.style.setProperty(key, value)
       })
@@ -215,6 +227,46 @@ export const popup = (...cs:HTMLArg[])=>{
 
 }
 
+export const errorpopup = (e:Error | string) =>{
+  popup(div(
+    style({
+      background:color.background,
+      border:"1px solid "+color.gray,
+      padding:"1em",
+      borderRadius:".4em",
+      color:color.red,
+    }),
+    h2("Error"),
+    p(String(e))
+  ))
+  throw (e instanceof Error) ? e : new Error(String(e))
+}
 
 
 
+export let string_editor = (content:string, update:(s:string)=>void, tag:(...cs: HTMLArg[])=> HTMLElement = pre , style:Partial<CSSStyleDeclaration> = {}):HTMLElement=>{
+  let saver = button("save", {onclick: ()=>{
+    let go = (c:Node):string=>{
+      if (c instanceof HTMLBRElement) return "\n"
+      else if (c instanceof Text) return c.textContent
+      let t = Array.from(c.childNodes).map(go).join("")
+      return c instanceof HTMLDivElement ? t + "\n" : t
+    }
+    let content = go(area)
+    update(content);
+    saver.style.display = "none";
+  }, style:{display:"none", margin:"1em 0"}})
+  let area = tag(
+    content,
+    {
+      style:{
+        padding:".2em",
+        whiteSpace: "pre",
+        ...style
+      }
+    },
+    {contentEditable:true,
+    oninput:()=>{saver.style.display = "block"}
+  });
+  return span(area, saver)
+}
