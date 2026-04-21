@@ -54,8 +54,8 @@ export const validate = (schema:Schema, object: any)=>{
     s = deref(s)
     if (s.type == undefined){
       if ("anyOf" in s){
-        let ok = false
-        s.anyOf.forEach(p=>{
+        let ok = false;
+        (s.anyOf as Schema[]).forEach(p=>{
           try{
             go(p, object)
             ok = true
@@ -64,9 +64,8 @@ export const validate = (schema:Schema, object: any)=>{
         assert(ok, "No matching schema in anyOf")
       }else if ("const" in s){
         assert(JSON.stringify(object) == JSON.stringify(s.const), "const mismatch")
-      } else return
-    }
-    if (typeof object == "string") {assert (s.type == "string")
+      }
+    } else if (typeof object == "string") {assert (s.type == "string")
     } else if (object instanceof Array){
       if (s.type != "array") return raise("array expected")
       object.forEach(x=>go(s.items, x))

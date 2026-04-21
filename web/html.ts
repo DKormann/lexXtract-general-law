@@ -227,7 +227,7 @@ export const popup = (...cs:HTMLArg[])=>{
 
 }
 
-export const errorpopup = (e:Error | string) =>
+export const errorpopup = (e:Error | string) =>{
   popup(div(
     style({
       background:color.background,
@@ -238,7 +238,9 @@ export const errorpopup = (e:Error | string) =>
     }),
     h2("Error"),
     p(String(e))
-))
+  ))
+  throw (e instanceof Error) ? e : new Error(String(e))
+}
 
 
 

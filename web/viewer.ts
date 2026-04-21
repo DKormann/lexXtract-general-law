@@ -1,11 +1,17 @@
 import type { JsonData, Stored } from "../src/struct";
-import { button, div, errorpopup, p, pre, textarea } from "./html";
+import { button, color, div, errorpopup, p, pre, style, textarea } from "./html";
 
 export const jsonView = (d:JsonData):HTMLElement =>{
-    if (typeof d == "string") return pre(d)
-    if (d instanceof Array) return div(...d.map(jsonView))
-    if (d instanceof Object) return div(...Object.entries(d).map(([k,v])=>p(k, ":", jsonView(v))))
-    throw new Error("Invalid data")
+
+
+
+    return div(
+      style({paddingLeft:"0.5em", borderLeft:"2px solid "+color.gray, }),
+      (typeof d == "string") ? pre(d) :
+      (d instanceof Array) ? div(...d.map(jsonView)) :
+      (d instanceof Object) ? div(...Object.entries(d).map(([k,v])=>p(k, ":", jsonView(v)))) :
+      errorpopup("Invalid data")
+    )
   }
 
 export const viewer = (data:Stored, viewer:(d:JsonData)=>HTMLElement = jsonView) => {

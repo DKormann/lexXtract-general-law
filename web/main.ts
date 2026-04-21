@@ -117,7 +117,7 @@ const Taxonomy = viewer(taxonomy)
 
 
 
-const docs = localDB.get("admin", name+".docs", 
+const docs = localDB.get("admin", "docs", 
   {type:"object", additionalProperties:{type:"string"} }
 )
 
@@ -126,14 +126,18 @@ const Documents = div(
   button("+add",{onclick:()=> docs.get().then(s=>docs.set({"untitled":"", ...(s as {})}))})
 )
 
-let it = localDB.get("admin", "admin.test", {type:"array", items:{type:"string"}})
-it.get().then(d=>console.log("got data", d)).catch(e=>console.log("error getting data", e))
+const prompt_ = localDB.get("admin", "prompt", {type:"string"})
+
+const Prompt = div(
+  viewer(prompt_)
+)
 
 
 
 const sections : {[key:string]: HTMLElement} = {
   Taxonomy,
   Documents,
+  Prompt
 }
 
 let defaultSection = "Taxonomy"
