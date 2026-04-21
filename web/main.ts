@@ -108,28 +108,42 @@ const show_module = (mod:string) => {
 
   {
     let model = mod_db<string>("model", Schema.string)
-    let model_picker = div()
+    let model_picker = div(style({
+      position:"fixed",
+      background: color.background,
+      padding:"0.5em",
+      borderRadius:".3em",
+      top:"1em",
+    }))
+    
     let setmodel = (m:string)=>{
-      model_picker.replaceChildren("Model: ", button(m || "none", {onclick:()=>{
-        let mkpop = ()=>popup(
-          h2("choose a model"),
-          models.get()!.map(m=>
-          p(
-            mkbutton(m, ()=> {
-              model.set(m);
+      model_picker.replaceChildren("Model: ",
+        button(m || "none", {onclick:()=>{
+          let mkpop = ()=>popup(
+            h2("choose a model"),
+            models.get()!.map(m=>
+            p(
+              mkbutton(m, ()=> {
+                model.set(m);
+                pop.remove()
+              })
+            )),
+            button("+add", {onclick:()=>{
+              let name = prompt("choose model")
+              if (!name)return 
+              models.set([...models.get()!, name])
+              model.set(name)
               pop.remove()
-            })
-          )),
-          button("+add", {onclick:()=>{
-            let name = prompt("choose model")
-            if (!name)return 
-            models.set([...models.get()!, name])
-            model.set(name)
-            pop.remove()
-          }})
-        )
-        let pop = mkpop()
-      }}))
+            }})
+          )
+          let pop = mkpop()
+        }}),
+        button("reset chat", {
+          onclick:()=>{
+            msgs.set([])
+          }
+        })
+      )
     };
     setmodel(models.get()![0]!)
     model.get().then(setmodel)
@@ -141,16 +155,18 @@ const show_module = (mod:string) => {
       content: Schema.string
     }, ['role', 'content'])))
 
-    let msgs_view = div()
+    let msgs_view = div(style({marginBottom:"3em"}))
 
     let show_msgs = ()=>{
       msgs.get().then(m=>{
         msgs_view.replaceChildren(...(m as {role:string, content:string}[]).map(msg=>
-          div(
+          pre(
             style({
-              padding:".2em",
+
               width:"fit-content",
               fontWeight: msg.role == "user" ? "bold" : "normal",
+              padding: ".2em",
+              margin: "0",
               paddingLeft: msg.role == "user" ? "0" : "1em",
             }),
             msg.content
@@ -165,7 +181,7 @@ const show_module = (mod:string) => {
     let intake = input({placeholder:"message",
       style:{
         width:"40vw",
-        position: "absolute",
+        position: "fixed",
         bottom:"1em",
       },
       onkeydown: e=>{
