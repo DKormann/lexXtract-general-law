@@ -1,5 +1,5 @@
 import type { JsonData, Stored } from "../src/struct";
-import { button, color, div, errorpopup, p, pre, style, textarea } from "./html";
+import { button, color, div, errorpopup, p, padding, pre, style, textarea } from "./html";
 
 export const jsonView = (d:JsonData):HTMLElement =>{
 
@@ -12,7 +12,7 @@ export const jsonView = (d:JsonData):HTMLElement =>{
     )
   }
 
-export const viewer = (data:Stored, viewer:(d:JsonData)=>HTMLElement = jsonView) => {
+export const viewer = <T extends JsonData>(data:Stored<T>, viewer:(d:JsonData)=>HTMLElement = jsonView) => {
 
   let editmode = false
   let bod = div("loading...")
@@ -25,7 +25,10 @@ export const viewer = (data:Stored, viewer:(d:JsonData)=>HTMLElement = jsonView)
   let el = div(but, bod)
 
   let dat:JsonData = ""
-  let editor = pre({contentEditable:true})
+  let editor = pre({contentEditable:true, style:{
+    padding:"1em",
+    width: "100%",
+  }})
 
 
   let setedit = (val:boolean)=>{

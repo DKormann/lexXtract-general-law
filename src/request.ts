@@ -9,10 +9,10 @@ type Tool = {
 
 type ModelResponse = {
   usage: { cost: number };
-  output: Array<
-    | { type: "function_call"; name: string; arguments: string }
+  output:
+    ({ type: "function_call"; name: string; arguments: string }
     | { type: "reasoning"; content: unknown }
-  >;
+    | { type: "message"; content: {type:"output_text", text:string} []})[];
 };
 
 type StorageLike = {
@@ -96,4 +96,46 @@ export async function request(promptText: string, model: string, tool: Tool, see
 
   storage.setItem(key, JSON.stringify(result));
   return result;
+}
+
+export type Message = {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export async function chat(messages: Message[], model: string):Promise<Message>{
+  const key = cacheKey([messages, model])
+  const cached = storage.getItem(key);
+  if (cached) {
+    return JSON.parse(cached) as Message;
+  }
+
+  const response = await fetch("https://openrouter.ai/api/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getApiKey()}`,
+    },
+    body: JSON.stringify({
+      model,
+      input: messages.map(m=>({role:m.role, content:m.content})),
+      reasoning: { effort: "low" },
+    }),
+  });
+
+  const data = (await response.json()) as ModelResponse;
+  console.log("Model response:", data);
+  
+  const responseMessage = data.output.find((item) => item.type == "message");
+  if (!responseMessage) throw new Error("Model response did not include a text message");
+
+  const result = {
+    role: "assistant",
+    content: responseMessage.content[0]!.text,
+  } as Message;
+
+  storage.setItem(key, JSON.stringify(result));
+
+  return result;
+
 }

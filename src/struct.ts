@@ -92,18 +92,18 @@ export const fillSchema = (schema:Schema):JsonData=>{
 
 export type JsonData = string | {[ key: string ]: JsonData} | JsonData[]
 
-export type Stored = {
+export type Stored <T extends JsonData> = {
   owner: string,
   key: string,
   schema: Schema,
-  get: ()=>Promise<JsonData>,
-  set: (data:JsonData)=>Promise<void>
+  get: ()=>Promise<T>,
+  set: (data:T)=>Promise<void>
   onupdate: (listener:()=>void)=>void
 }
 
 export type DB = {
   signup(userid:string, password:string):Promise<void>
-  get(key:string, schema:Schema, owner?:string): Stored
+  get<T extends JsonData>(key:string, schema:Schema, owner?:string): Stored<T>
 }
 
 let currentUser : {userid: string, password: string} | null = null
@@ -117,7 +117,7 @@ export const localDB: DB = {
     storage.setItem("users", JSON.stringify(users))
   },
   
-  get(key: string, schema: Schema, owner?: string): Stored {
+  get<T extends JsonData>(key: string, schema: Schema, owner?: string): Stored<T> {
     owner = owner ?? currentUser?.userid
     if (!owner) throw new Error("No user logged in")
     let data = storage.getItem((owner ?? "default")+"."+key)

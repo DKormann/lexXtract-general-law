@@ -5,6 +5,14 @@ import gdpr from "./gdpr.json"
 let browser = typeof window !== "undefined"
 
 
+let format = (template:string, data:{[key:string]: string}):string=>{
+  Object.entries(data).forEach(([k,v])=>{
+    if (!template.includes(`{${k}}`)) throw new Error(`Placeholder {${k}} not found in template`)
+    template = template.replaceAll(`{${k}}`, v)
+  })
+  return template
+}
+
 export const storage = browser ?
   localStorage:
   (()=>{

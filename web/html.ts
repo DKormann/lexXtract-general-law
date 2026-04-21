@@ -244,3 +244,29 @@ export const errorpopup = (e:Error | string) =>{
 
 
 
+export let string_editor = (content:string, update:(s:string)=>void, tag:(...cs: HTMLArg[])=> HTMLElement = pre , style:Partial<CSSStyleDeclaration> = {}):HTMLElement=>{
+  let saver = button("save", {onclick: ()=>{
+    let go = (c:Node):string=>{
+      if (c instanceof HTMLBRElement) return "\n"
+      else if (c instanceof Text) return c.textContent
+      let t = Array.from(c.childNodes).map(go).join("")
+      return c instanceof HTMLDivElement ? t + "\n" : t
+    }
+    let content = go(area)
+    update(content);
+    saver.style.display = "none";
+  }, style:{display:"none", margin:"1em 0"}})
+  let area = tag(
+    content,
+    {
+      style:{
+        padding:".2em",
+        whiteSpace: "pre",
+        ...style
+      }
+    },
+    {contentEditable:true,
+    oninput:()=>{saver.style.display = "block"}
+  });
+  return span(area, saver)
+}
