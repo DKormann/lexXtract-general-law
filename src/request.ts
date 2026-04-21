@@ -99,7 +99,7 @@ export async function request(promptText: string, model: string, tool: Tool, see
 }
 
 export type Message = {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
 }
 

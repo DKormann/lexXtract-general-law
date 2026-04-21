@@ -98,14 +98,11 @@ const show_module = (mod:string) => {
     }
   }))
 
-  let prompt_ = mod_db("prompt", Schema.string)
+  let prompt_ = mod_db<string>("prompt", Schema.string)
   const Prompt = viewer(prompt_)
 
 
-
-
   const Agent = div()
-
   {
     let model = mod_db<string>("model", Schema.string)
     let model_picker = div(style({
@@ -139,8 +136,10 @@ const show_module = (mod:string) => {
           let pop = mkpop()
         }}),
         button("reset chat", {
-          onclick:()=>{
-            msgs.set([])
+          onclick:async ()=>{
+            let msg = await prompt_.get()
+            msgs.set([{role:"system", content:msg}])
+            console.log(await msgs.get())
           }
         })
       )
@@ -160,16 +159,18 @@ const show_module = (mod:string) => {
     let show_msgs = ()=>{
       msgs.get().then(m=>{
         msgs_view.replaceChildren(...(m as {role:string, content:string}[]).map(msg=>
+
           pre(
             style({
-
               width:"fit-content",
               fontWeight: msg.role == "user" ? "bold" : "normal",
+              fontStyle: msg.role == "system" ? "italic" : "none",
               padding: ".2em",
               margin: "0",
               paddingLeft: msg.role == "user" ? "0" : "1em",
+              textWrap: "wrap",
             }),
-            msg.content
+            msg.content,
           )
         ))
       })
