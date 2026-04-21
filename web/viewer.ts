@@ -1,16 +1,19 @@
-import type { JsonData, Stored } from "../src/struct";
+import type { Stored } from "../src/db";
+import type { JsonData } from "../src/struct";
 import { button, color, div, errorpopup, p, padding, pre, style, textarea } from "./html";
 
 export const jsonView = (d:JsonData):HTMLElement =>{
 
-    return div(
-      style({paddingLeft:"0.5em", borderLeft:"2px solid "+color.gray, }),
-      (typeof d == "string") ? pre(d) :
-      (d instanceof Array) ? div(...d.map(jsonView)) :
-      (d instanceof Object) ? div(...Object.entries(d).map(([k,v])=>p(k, ":", jsonView(v)))) :
-      errorpopup("Invalid data")
-    )
-  }
+  let empty = pre(style({fontStyle:"italic"}), `<empty ${typeof d}>`)
+
+  return div(
+    style({paddingLeft:"0.5em", borderLeft:"2px solid "+color.gray, }),
+    (typeof d == "string") ? (d ? pre(d) : empty) :
+    (d instanceof Array) ? (d.length ? div(...d.map(jsonView)) : empty) :
+    (d instanceof Object) ? Object.keys(d).length ? div(...Object.entries(d).map(([k,v])=>p(k, ":", jsonView(v)))) : empty :
+    errorpopup("Invalid data")
+  )
+}
 
 export const viewer = <T extends JsonData>(data:Stored<T>, viewer:(d:JsonData)=>HTMLElement = jsonView) => {
 
@@ -58,7 +61,8 @@ export const viewer = <T extends JsonData>(data:Stored<T>, viewer:(d:JsonData)=>
   data.onupdate(()=>{
     data.get().then(d=>{
       dat = d
-      if (!editmode) bod.replaceChildren(viewer(dat))
+      if (editmode) setedit(true)
+      else bod.replaceChildren(viewer(dat))
     })
   })
 

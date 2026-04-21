@@ -1,3 +1,4 @@
+import { LocalStored } from "./helpers";
 import type { Schema } from "./struct";
 
 type Tool = {
@@ -15,34 +16,14 @@ type ModelResponse = {
     | { type: "message"; content: {type:"output_text", text:string} []})[];
 };
 
-type StorageLike = {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-};
 
-const storage: StorageLike =
-  typeof localStorage !== "undefined"
-    ? localStorage
-    : {
-        getItem() {
-          return null;
-        },
-        setItem() {},
-      };
+export const localApiKey = LocalStored<string>("api_key", "")
 
 function getApiKey(): string {
-  const existing = storage.getItem("api_key");
-  if (existing) {
-    return existing;
-  }
-
-  const entered = prompt("provide openrouter key");
-  if (!entered) {
-    throw new Error("Missing OpenRouter API key");
-  }
-
-  storage.setItem("api_key", entered);
-  return entered;
+  let key = localApiKey
+  if (!key.get()) key.set(prompt("provide openrouter key") || "")
+  if (!key.get()) throw new Error("Missing OpenRouter API key")
+  return key.get()!
 }
 
 function cacheKey(parts: unknown[]): string {
@@ -50,12 +31,12 @@ function cacheKey(parts: unknown[]): string {
 }
 
 export async function request(promptText: string, model: string, tool: Tool, seed: number) {
-  const key = cacheKey([promptText, model, tool, seed]);
+  // const key = cacheKey([promptText, model, tool, seed]);
 
-  const cached = storage.getItem(key);
-  if (cached) {
-    return JSON.parse(cached) as { cost: number; output: unknown };
-  }
+  // const cached = storage.getItem(key);
+  // if (cached) {
+  //   return JSON.parse(cached) as { cost: number; output: unknown };
+  // }
 
   const response = await fetch("https://openrouter.ai/api/v1/responses", {
     method: "POST",
@@ -94,7 +75,7 @@ export async function request(promptText: string, model: string, tool: Tool, see
     output: JSON.parse(functionCall.arguments),
   };
 
-  storage.setItem(key, JSON.stringify(result));
+  // storage.setItem(key, JSON.stringify(result));
   return result;
 }
 
@@ -105,10 +86,10 @@ export type Message = {
 
 export async function chat(messages: Message[], model: string):Promise<Message>{
   const key = cacheKey([messages, model])
-  const cached = storage.getItem(key);
-  if (cached) {
-    return JSON.parse(cached) as Message;
-  }
+  // const cached = storage.getItem(key);
+  // if (cached) {
+  //   return JSON.parse(cached) as Message;
+  // }
 
   const response = await fetch("https://openrouter.ai/api/v1/responses", {
     method: "POST",
@@ -134,7 +115,7 @@ export async function chat(messages: Message[], model: string):Promise<Message>{
     content: responseMessage.content[0]!.text,
   } as Message;
 
-  storage.setItem(key, JSON.stringify(result));
+  // storage.setItem(key, JSON.stringify(result));
 
   return result;
 

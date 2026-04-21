@@ -1,11 +1,10 @@
 
-import { db } from "../src/app";
-import { Stored } from "../src/helpers";
-import { chat, type Message, request } from "../src/request";
+import { db  } from "../src/app";
+import { LocalStored } from "../src/helpers";
+import { chat, localApiKey, type Message, request } from "../src/request";
 import { Schema, type JsonData } from "../src/struct";
-import { fillSchema, localDB, TaxonomySchema } from "../src/struct";
-import type { Module, Taxonomy } from "../src/types";
-import { background, body, border, button, color, div, h2, h3, height, input, margin, p, padding, popup, pre, span, style, textarea, type HTMLArg } from "./html";
+import { fillSchema, TaxonomySchema } from "../src/struct";
+import { background, body, border, button, color, div, errorpopup, h2, h3, height, input, margin, p, padding, popup, pre, span, style, table, td, textarea, tr, type HTMLArg } from "./html";
 import { viewer } from "./viewer";
 
 let page = div({
@@ -30,7 +29,7 @@ let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{
 
 type Model = string
 
-const models = Stored<Model[]>("models", [
+const models = LocalStored<Model[]>("models", [
   "openai/gpt-oss-120b",
   "anthropic/claude-opus-4.5",
 ])
@@ -38,25 +37,27 @@ const models = Stored<Model[]>("models", [
 
 let titlebar = h2("lexxtract")
 
-let module_list = db.get("modules", Schema.array(Schema.string))
+let module_list = db.get<ModPath[]>("modules", Schema.array(Schema.string))
+
 let header = div(
   titlebar,
   button("+add module", {onclick:()=>{
     let name = prompt("Module name")
     if (!name) return
     module_list.get().then(mods=>{
-      module_list.set([...mods as string[], name])
-      current_module.set(name)
+      module_list.set([...mods, {name, owner: db.userid}])
+      current_module.set({name, owner: db.userid})
     })
   }}),
   button("pick module", {
   onclick:async ()=>{
 
-    let mods = await module_list.get() as string[]
+    let mods = await module_list.get()
     let pop = popup(
       h3("choose a module"),
       mods.map(m=>{
-        return p(button(m, {onclick:()=>{
+        return p(button(m.owner,"/", m.name, {onclick:()=>{
+          console.log("Selected module", m)
           current_module.set(m)
           pop.remove()
         }}))
@@ -69,21 +70,29 @@ body.append(header,
   page
 )
 
-let current_module = db.get("current_module", Schema.string)
+
+type ModPath = {
+  owner: string,
+  name: string
+}
+
+let current_module = db.get<ModPath>("current_module", Schema.object({owner: Schema.string, name: Schema.string}, ["owner", "name"]))
+
 
 current_module.get().then(m=>{
-  if (m) show_module(m as string)
+  show_module(m)
 })
 
 current_module.onupdate(async ()=>{
+  console.log("Module updated")
   let mod = await current_module.get()
-  if (mod) show_module(mod as string)
+  if (mod) show_module(mod)
 })
 
 
-const show_module = (mod:string) => {
+const show_module = (mod:ModPath) => {
 
-  let mod_db = <T extends JsonData> (key:string, schema:Schema) => db.get<T>(mod+":"+key, schema)
+  let mod_db = <T extends JsonData> (key:string, schema:Schema) => db.get<T>(mod.name+":"+key, schema)
 
   let taxonomy = mod_db("taxonomy", TaxonomySchema)
   const Taxonomy = viewer(taxonomy)
@@ -110,7 +119,7 @@ const show_module = (mod:string) => {
       background: color.background,
       padding:"0.5em",
       borderRadius:".3em",
-      top:"1em",
+      top:"5em",
     }))
     
     let setmodel = (m:string)=>{
@@ -210,12 +219,65 @@ const show_module = (mod:string) => {
     )
   }
 
+  let Settings =div()
+  let mksettings =()=> {
+
+    let pwd = input({type:"password", placeholder:"new password"})
+    let apikey = input({ type:"password", placeholder:"new API key"})
+    
+    Settings.replaceChildren (div(
+      table(
+        style({borderSpacing: "0.5em",}),
+        tr(
+          td("user id: "),
+          td(db.userid ?? "<none>"),
+          td(
+            button("logout", {onclick:()=>{db.logout();mksettings()}}),
+            button("switch account", {onclick:()=>{
+            let userid = input({placeholder:"user id"})
+            let pwd = input({type:"password", placeholder:"password"})
+            let pop = popup(
+              h3("switch account"),
+              table(
+                style({borderSpacing: "0.5em",}),
+                tr(td("user id: "),td(userid),),
+                tr(td("password: "),td(pwd),),
+                tr(td(),td(button("login", {onclick:()=>{
+                  db.signup(userid.value,pwd.value).catch(errorpopup)
+                  pop.remove()
+                  mksettings()
+                }}))),
+              )
+            )
+          }}))
+        ),
+        tr(
+          td("Add API Key: "),
+          td(apikey),
+          td(button("set", {onclick:()=>{localApiKey.set(apikey.value); apikey.value = ""}}))
+        ),
+        tr(
+          td("Change Password: "),
+          td(pwd),
+          td(button("set", {onclick:()=>{
+            db.changePassword(pwd.value).then(()=>{
+              alert("password updated.")
+              pwd.value = ''
+            })
+          }}))
+        )
+      )
+    ))
+  }
+  mksettings()
+
   
   const sections : {[key:string]: HTMLElement} = {
     Taxonomy,
     Documents,
     Prompt,
-    Agent
+    Agent,
+    Settings,
   }
 
   let defaultSection = "Agent"
@@ -258,8 +320,7 @@ const show_module = (mod:string) => {
   ))
   renderSideBar(defaultSection)
 
-
-  titlebar.textContent = "lexxtract : " + mod
+  titlebar.textContent = "lexxtract : " + mod.owner + " / " + (mod.name || "unnamed module")
 
   page.replaceChildren(
     div(

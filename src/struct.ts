@@ -1,6 +1,6 @@
 
 import { hash } from "./hash"
-import { storage } from "./helpers"
+import { LocalStored, storage } from "./helpers"
 
 export type Schema =
 { [key:string]: JsonData} & 
@@ -91,64 +91,6 @@ export const fillSchema = (schema:Schema):JsonData=>{
 }
 
 export type JsonData = string | {[ key: string ]: JsonData} | JsonData[]
-
-export type Stored <T extends JsonData> = {
-  owner: string,
-  key: string,
-  schema: Schema,
-  get: ()=>Promise<T>,
-  set: (data:T)=>Promise<void>
-  onupdate: (listener:()=>void)=>void
-}
-
-export type DB = {
-  signup(userid:string, password:string):Promise<void>
-  get<T extends JsonData>(key:string, schema:Schema, owner?:string): Stored<T>
-}
-
-let currentUser : {userid: string, password: string} | null = null
-
-export const localDB: DB = {
-  async signup(userid: string, password: string) {
-    let users = JSON.parse(storage.getItem("users") ?? "{}") as {[userid:string]: string}
-    if (userid in users && users[userid] != hash(password)) throw new Error("user exists")
-    currentUser = {userid, password}
-    users[userid] = hash(password)
-    storage.setItem("users", JSON.stringify(users))
-  },
-  
-  get<T extends JsonData>(key: string, schema: Schema, owner?: string): Stored<T> {
-    owner = owner ?? currentUser?.userid
-    if (!owner) throw new Error("No user logged in")
-    let data = storage.getItem((owner ?? "default")+"."+key)
-    if (!data) {
-      data = JSON.stringify(fillSchema(schema))
-      storage.setItem(owner+"."+key, data)
-    }
-    let parsed = JSON.parse(data)
-    
-    validate(schema, parsed)
-    let listeners: (()=>void)[] = []
-    return {
-      owner,
-      key,
-      schema,
-      get: async ()=> {
-        return parsed
-      },
-      set: async (data: JsonData)=>{
-        if (owner != currentUser?.userid) throw new Error("Cannot set data for another user")
-        validate(schema, data)
-        parsed = data
-        listeners.forEach(l=>l())
-        storage.setItem(owner+"."+key, JSON.stringify(data))
-      },
-      onupdate: (listener: ()=>void)=>{
-        listeners.push(listener)
-      }
-    }
-  }
-}
 
 
 export const Schema = {
