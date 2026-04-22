@@ -10,7 +10,12 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default {
+import {
+  SignupResult,
+} from "./types";
+
+export const params = {
   userid: __t.string(),
   passhash: __t.string(),
 };
+export const returnType = SignupResult

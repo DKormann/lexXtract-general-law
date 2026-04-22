@@ -1,8 +1,9 @@
 // import spacetimedb from "../backend/spacetimedb/src"
 import { hash } from "./hash"
 import { LocalStored, storage } from "./helpers"
-import { fillSchema, validate, type JsonData, type Schema } from "./struct"
+import { fillSchema, Schema, validate, type JsonData } from "./struct"
 import { DbConnection } from "./module_bindings"
+import { errorpopup } from "../web/html"
 
 
 export type BaseStored = {
@@ -60,8 +61,7 @@ const mkStored = <T extends JsonData>(base: BaseStored, schema: Schema): Stored<
 
 
 export type DB = {
-  signup(userid:string, password:string):Promise<void>
-  logout():Promise<void>
+  signup(arg: {userid:string, passhash:string}):Promise<void>
   userid: string,
   changePassword(newPassword:string):Promise<void>
   get<T extends JsonData>(key:string, schema:Schema, owner?:string): Stored<T>
@@ -69,113 +69,99 @@ export type DB = {
 
 let rand = (digits:number) => Math.floor(Math.random()*10**digits).toString().padStart(digits, "0")
 
-export const localDB= async():Promise<DB> =>{
+// export const localDB= async():Promise<DB> =>{
 
 
+//   throw new Error("localDB is deprecated, use RemoteDB instead. localDB will be removed in a future version.")
+//   let randu = ()=>({userid: 'u' + rand(4), password: rand(6)})
+//   let localUser = LocalStored<{userid: string, password: string} >("current_user", randu() )
+//   let users = LocalStored<{[userid:string]: string}>("users", {})
 
-  let randu = ()=>({userid: 'u' + rand(4), password: rand(6)})
-  let localUser = LocalStored<{userid: string, password: string} >("current_user", randu() )
-  let users = LocalStored<{[userid:string]: string}>("users", {})
+//   let db:DB = {
+//     userid : localUser.get().userid,
 
-  let db:DB = {
-    userid : localUser.get().userid,
+//     async signup(userid: string, password: string) {
+//       let usersData = users.get()
+//       if (userid in usersData && usersData[userid] != hash(password)) throw new Error("user exists")
+//       localUser.set({userid, password})
+//       users.set({...usersData, [userid]: hash(password)})
+//       db.userid = userid
+//     },
+//     async logout(){
+//       localUser.set(randu())
+//       db.userid = localUser.get().userid
+//     },
+//     async changePassword(newPassword: string) {
+//       let local = localUser.get()
+//       if (!local) throw new Error("No user logged in")
+//       let usersData = users.get()
+//       if (!(local.userid in usersData) || usersData[local.userid] != hash(local.password)) throw new Error("Invalid password")
+//       users.set({...usersData, [local.userid]: hash(newPassword)})
+//       localUser.set({userid: local.userid, password: newPassword})
+//     },
 
-    async signup(userid: string, password: string) {
-      let usersData = users.get()
-      if (userid in usersData && usersData[userid] != hash(password)) throw new Error("user exists")
-      localUser.set({userid, password})
-      users.set({...usersData, [userid]: hash(password)})
-      db.userid = userid
-    },
-    async logout(){
-      localUser.set(randu())
-      db.userid = localUser.get().userid
-    },
-    async changePassword(newPassword: string) {
-      let local = localUser.get()
-      if (!local) throw new Error("No user logged in")
-      let usersData = users.get()
-      if (!(local.userid in usersData) || usersData[local.userid] != hash(local.password)) throw new Error("Invalid password")
-      users.set({...usersData, [local.userid]: hash(newPassword)})
-      localUser.set({userid: local.userid, password: newPassword})
-    },
+//     get<T extends JsonData>(key: string, schema: Schema, owner?: string) {
+//       owner = owner || db.userid
+//       let rkey = owner+"."+key+ hash(JSON.stringify(schema))
+//       // console.log("Getting DB key", rkey)
+//       let rowner = owner || db.userid
+//       let base:BaseStored = {
+//         async get(){
+//           let data = localStorage.getItem(rkey)
+//           if (!data) return undefined
+//           return JSON.parse(data) as JsonData
+//         },
+//         async set(data:JsonData){
+//           if (rowner != db.userid) throw new Error("Cannot set data for another user")
+//           localStorage.setItem(rkey, JSON.stringify(data))
+//         }
+//       };
+//       return mkStored<T>(base, schema)
+//     },
+//   }
 
-    get<T extends JsonData>(key: string, schema: Schema, owner?: string) {
-      owner = owner || db.userid
-      let rkey = owner+"."+key+ hash(JSON.stringify(schema))
-      // console.log("Getting DB key", rkey)
-      let rowner = owner || db.userid
-      let base:BaseStored = {
-        async get(){
-          let data = localStorage.getItem(rkey)
-          if (!data) return undefined
-          return JSON.parse(data) as JsonData
-        },
-        async set(data:JsonData){
-          if (rowner != db.userid) throw new Error("Cannot set data for another user")
-          localStorage.setItem(rkey, JSON.stringify(data))
-        }
-      };
-      return mkStored<T>(base, schema)
-    },
-  }
-
-  return db
-}
-
-{
-
-  console.log("Connecting to DB...")
-
-  DbConnection.builder()
-  .withUri("wss://maincloud.spacetimedb.com/lexxtract")
-  .withDatabaseName("lexxtract")
-  .onConnect(c=>{
-
-    let userid = "bob"
-    let passhash = hash("password123")
+//   return db
+// }
 
 
-    c.reducers.signup({userid, passhash}).then(()=>{
-      console.log("Signed up")
-    })
-
-  })
-  .onConnectError(e=>{
-    console.error("Failed to connect to DB", e)
-  })
-  .build()
-}
 
 const mkkey = (owner:string, key:string) => owner.replaceAll(":", "_:") + ":" + key
 
+
+export type User = {userid: string, passhash: string}
+export const User:Schema = Schema.object({
+  userid: Schema.string,
+  passhash: Schema.string,
+}, ['userid', 'passhash'])
+
+export const randUser = ()=>({userid: 'u' + rand(4), passhash: hash(rand(6))})
 
 export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
   DbConnection.builder()
   .withUri("wss://maincloud.spacetimedb.com/lexxtract")
   .withDatabaseName("lexxtract")
   .onConnect(c=>{
-    console.log("Connected to DB")
-    let randu = ()=>({userid: 'u' + rand(4), password: rand(6)})
-    let localUser = LocalStored<{userid: string, password: string} >("current_user_remote", randu())
-    let pwd = ()=>hash(localUser.get().password)
+    let localUser = LocalStored<User>("current_user_remote_hashed", User, randUser())
+    console.log(localUser.get())
+    let pwd = ()=>hash(localUser.get().passhash)
+
+    const signup = async (args:{userid:string, passhash:string}) => {
+      console.log("Signing up user", args.userid)
+      let res = await c.procedures.signup(args)
+      if (res.tag == "Success"){
+        localUser.set(args)
+        db.userid = args.userid
+      }else errorpopup("error signing up")
+    }
 
     let db:DB = {
       userid: localUser.get().userid,
-      async signup(userid: string, password: string) {
-        await c.reducers.signup({userid, passhash:pwd()})
-        localUser.set({userid, password})
-        db.userid = userid
-      },
-      async logout(){
-        localUser.set(randu())
-        db.userid = localUser.get().userid
-      },
+      
+      signup,
       async changePassword(newPassword: string) {
-        let local = localUser.get()
-        if (!local) throw new Error("No user logged in")
-        await c.reducers.changePassword({userid: db.userid, passhash:pwd(), newPasshash: hash(newPassword)})
-        localUser.set({userid: local.userid, password: newPassword})
+        let res = await c.procedures.changePassword({userid: db.userid, passhash:pwd(), newPasshash: hash(newPassword)})
+        if (res.tag != "Success") throw new Error("Failed to change password")
+        signup({userid: db.userid, passhash: newPassword})
       },
 
       get<T extends JsonData>(key: string, schema: Schema, owner?: string) {
@@ -186,33 +172,29 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
 
         let base:BaseStored = {
           get: ()=> new Promise<JsonData | undefined>((rs, rj)=>{
-            console.log("Subscribing to DB key", rkey)
-            c.subscriptionBuilder()
+            let sub = c.subscriptionBuilder()
             .onApplied(c=>{
-              console.log("DB update applied, checking for key", rkey)
               let r= c.db.storage.owner_key.find(rkey)
               if (!r) return rs(undefined)
               rs(JSON.parse(r.value) as JsonData)
+              sub.unsubscribe()
             })
             .onError(e=>{
               console.error("DB subscription error", e)
+              sub.unsubscribe()
               rj(e)
             })
             .subscribe(`select * from storage where owner_key = '${rkey}'`)
-            
           }),
           async set(data:JsonData){
-            c.reducers.setitem({owner, passhash: pwd(), key, value: JSON.stringify(data)})
+            let res = await c.procedures.setitem({owner, passhash: pwd(), key, value: JSON.stringify(data)})
+            if (res.tag != "Success") throw new Error("Failed to set item in DB")
           }
         };
         return mkStored<T>(base, schema)
       }
     }
-
-    db.signup(db.userid, localUser.get().password).then(()=>{
-      console.log("Signed up to remote DB as", db.userid)
-      res(db)
-    })
+    db.signup(localUser.get()).then(()=>res(db))
   })
   .onConnectError(e=>{
     console.error("Failed to connect to DB", e)
@@ -222,7 +204,7 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
 })
 
 
-{
+let test = async ()=>{
   let db = await RemoteDB()
   let test_schema:Schema = {
     type: "object",

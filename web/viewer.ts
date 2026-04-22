@@ -1,6 +1,8 @@
+import { db } from "../src/app";
 import type { Stored } from "../src/db";
 import type { JsonData } from "../src/struct";
-import { button, color, div, errorpopup, p, padding, pre, style, textarea } from "./html";
+import { button, color, div, errorpopup, p, padding, popup, pre, style, textarea } from "./html";
+import type { ModPath } from "./main";
 
 export const jsonView = (d:JsonData):HTMLElement =>{
 
@@ -35,6 +37,7 @@ export const viewer = <T extends JsonData>(data:Stored<T>, viewer:(d:JsonData)=>
 
 
   let setedit = (val:boolean)=>{
+    
     editmode = val
     if (editmode){
       editor.textContent = JSON.stringify(dat, null, 2)

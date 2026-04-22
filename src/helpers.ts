@@ -1,6 +1,7 @@
 // import { Role, type ExtractionItem, type Schema } from "./schemas"
-import type { Schema } from "./struct"
+import { fillSchema, validate, type Schema } from "./struct"
 import gdpr from "./gdpr.json"
+import { hash } from "./hash"
 
 let browser = typeof window !== "undefined"
 
@@ -52,21 +53,22 @@ const cache_func = <T extends Function>  (f:T ):T =>{
 export type LocalStored<T> = {
   get:()=>T,
   set:(val:T)=>void,
-  // del:()=>void
 }
-export const LocalStored = <T>(key:string, default_value:T):LocalStored<T> =>{
+export const LocalStored = <T>(key:string, schema:Schema, default_value?:T):LocalStored<T> =>{
+  key += hash(JSON.stringify(schema))
+  default_value ||= fillSchema(schema) as T
+  validate(schema, default_value)
+
   const set = (val:T)=> {
-    console.log(key, JSON.stringify(val, null, 2))
+    validate(schema, val)
     storage.setItem(key, JSON.stringify(val))
   }
 
-  if (storage.getItem(key) == null || storage.getItem(key) == "null") set(default_value)
   return {
     get:()=>{
       let val = storage.getItem(key)
-      if (val == undefined || val === "undefined") throw new Error("No value found for key " + key)
-      if (val) return JSON.parse(val) as T
-      return default_value
+      if (val == null || val == "null") return default_value
+      return JSON.parse(val) as T
     },
     set,
   }

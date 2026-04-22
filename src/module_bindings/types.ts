@@ -10,11 +10,32 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+// The tagged union or sum type for the algebraic type `ChangePasswordResult`.
+export const ChangePasswordResult = __t.enum("ChangePasswordResult", {
+  Success: __t.unit(),
+  Err: __t.unit(),
+});
+export type ChangePasswordResult = __Infer<typeof ChangePasswordResult>;
+
 export const Person = __t.object("Person", {
   userid: __t.string(),
   passhash: __t.string(),
 });
 export type Person = __Infer<typeof Person>;
+
+// The tagged union or sum type for the algebraic type `SetResult`.
+export const SetResult = __t.enum("SetResult", {
+  Success: __t.unit(),
+  Err: __t.unit(),
+});
+export type SetResult = __Infer<typeof SetResult>;
+
+// The tagged union or sum type for the algebraic type `SignupResult`.
+export const SignupResult = __t.enum("SignupResult", {
+  Success: __t.unit(),
+  Err: __t.unit(),
+});
+export type SignupResult = __Infer<typeof SignupResult>;
 
 export const Storage = __t.object("Storage", {
   ownerKey: __t.string(),

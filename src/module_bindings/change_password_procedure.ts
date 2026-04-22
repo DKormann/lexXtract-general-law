@@ -10,9 +10,13 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default {
-  owner: __t.string(),
+import {
+  ChangePasswordResult,
+} from "./types";
+
+export const params = {
+  userid: __t.string(),
   passhash: __t.string(),
-  key: __t.string(),
-  value: __t.string(),
+  newPasshash: __t.string(),
 };
+export const returnType = ChangePasswordResult

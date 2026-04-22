@@ -87,7 +87,8 @@ export const fillSchema = (schema:Schema):JsonData=>{
   if (schema.type == "object"){
     return Object.fromEntries((schema.required ?? []).map(k=> [k, fillSchema(schema.properties![k]!)]))
   }
-  throw new Error("Invalid schema")
+  throw new Error("Invalid schema" + JSON.stringify(schema))
+
 }
 
 export type JsonData = string | {[ key: string ]: JsonData} | JsonData[]

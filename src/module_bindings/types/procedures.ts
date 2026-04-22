@@ -6,5 +6,14 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all procedure arg schemas
+import * as ChangePasswordProcedure from "../change_password_procedure";
+import * as SetitemProcedure from "../setitem_procedure";
+import * as SignupProcedure from "../signup_procedure";
 
+export type ChangePasswordArgs = __Infer<typeof ChangePasswordProcedure.params>;
+export type ChangePasswordResult = __Infer<typeof ChangePasswordProcedure.returnType>;
+export type SetitemArgs = __Infer<typeof SetitemProcedure.params>;
+export type SetitemResult = __Infer<typeof SetitemProcedure.returnType>;
+export type SignupArgs = __Infer<typeof SignupProcedure.params>;
+export type SignupResult = __Infer<typeof SignupProcedure.returnType>;
 

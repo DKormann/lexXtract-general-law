@@ -78,9 +78,10 @@ export const htmlElement = (tag:string, text:string, cls:string = "", args?:Part
     _element.innerText = text
     st.color = color.color
     st.backgroundColor = color.lightgray
-    st.border = "1px solid "+color.color
+    st.border = "1px solid "+color.gray
     st.borderRadius = ".2em"
-    st.boxShadow = "0 2px 1px "+color.lightgray
+    st.padding = ".1em .4em"
+    st.margin = ".2em"
   }
   if (args) Object.entries(args).forEach(([key, value])=>{
     if (key === 'parent'){

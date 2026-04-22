@@ -1,5 +1,5 @@
 import { LocalStored } from "./helpers";
-import type { Schema } from "./struct";
+import { Schema } from "./struct";
 
 type Tool = {
   name: string;
@@ -17,7 +17,7 @@ type ModelResponse = {
 };
 
 
-export const localApiKey = LocalStored<string>("openrouter_api_key", "")
+export const localApiKey = LocalStored<string>("openrouter_api_key", Schema.string, "")
 
 function getApiKey(): string {
   let key = localApiKey.get()

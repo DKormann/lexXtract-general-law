@@ -25,39 +25,44 @@ export const init = spacetimedb.init(_ctx => {});
 export const onConnect = spacetimedb.clientConnected(_ctx => {});
 export const onDisconnect = spacetimedb.clientDisconnected(_ctx => {});
 
-export const signup = spacetimedb.reducer(
-  { userid: t.string(), passhash: t.string() },
-  (ctx, { userid, passhash }) => {
-    let prev = ctx.db.person.userid.find(userid)
-    if (prev){
-      if (prev.passhash != passhash) throw new Error("Incorrect password")
-    }else{
-      ctx.db.person.insert({ userid, passhash });
-      console.log("New user signed up:", userid)
-    }
-  }
+
+type SignupResult = {tag:"success" | "err"}
+let ok:SignupResult = {tag:"success"}
+let err:SignupResult = {tag:"err"}
+export const signup = spacetimedb.procedure(
+  {userid: t.string(), passhash:t.string()},
+  t.enum("SignupResult", ["success", "err"]),
+  (ctx, {userid, passhash})=> ctx.withTx(c=>{
+    let prev = c.db.person.userid.find(userid)
+    if (prev) return prev.passhash == passhash ? ok : err
+    c.db.person.insert({userid, passhash})
+    return ok
+  })
 )
 
-export const change_password = spacetimedb.reducer(
-  { userid: t.string(), passhash: t.string(), new_passhash: t.string() },
-  (ctx, { userid, passhash, new_passhash }) => {
-    let prev = ctx.db.person.userid.find(userid)
-    if (!prev || prev.passhash != passhash) throw new Error("Incorrect password")
-    ctx.db.person.userid.update({userid, passhash})
-  }
+export const changePassword = spacetimedb.procedure(
+  { userid: t.string(), passhash: t.string(), newPasshash: t.string() },
+  t.enum("changePasswordResult", ["success", "err"]),
+  (ctx, { userid, passhash, newPasshash }) => ctx.withTx(c=>{
+    let prev = c.db.person.userid.find(userid)
+    if (!prev || prev.passhash != passhash) return err
+    c.db.person.userid.update({userid, passhash: newPasshash})
+    return ok
+  })
 )
 
 const mkkey = (owner:string, key:string) => owner.replaceAll(":", "_:") + ":" + key
-
-export const setitem = spacetimedb.reducer(
-  { owner: t.string(), passhash: t.string(), key: t.string(), value: t.string() },
-  (ctx, { owner, passhash, key, value }) => {
-    let prev = ctx.db.person.userid.find(owner)
-    if (!prev) throw new Error("User not found:"+owner)
-    if (prev.passhash != passhash) throw new Error("Incorrect password")
+export const setitem = spacetimedb.procedure(
+  {owner: t.string(), passhash: t.string(), key: t.string(), value: t.string()},
+  t.enum("setResult", ["success", "err"]),
+  (ctx, { owner, passhash, key, value }) => ctx.withTx(c=>{
+    let prev = c.db.person.userid.find(owner)
+    if (!prev) return err
+    if (prev.passhash != passhash) err
     let owner_key = mkkey(owner, key)
-    let prev_item = ctx.db.storage.owner_key.find(owner_key)
-    if (prev_item) ctx.db.storage.owner_key.update({owner_key, value})
-    else ctx.db.storage.insert({ owner_key, value })
-  }
+    let prev_item = c.db.storage.owner_key.find(owner_key)
+    if (prev_item) c.db.storage.owner_key.update({owner_key, value})
+    else c.db.storage.insert({ owner_key, value })
+    return ok
+  })
 )

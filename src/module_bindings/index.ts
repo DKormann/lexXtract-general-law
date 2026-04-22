@@ -34,11 +34,11 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
-import ChangePasswordReducer from "./change_password_reducer";
-import SetitemReducer from "./setitem_reducer";
-import SignupReducer from "./signup_reducer";
 
 // Import all procedure arg schemas
+import * as ChangePasswordProcedure from "./change_password_procedure";
+import * as SetitemProcedure from "./setitem_procedure";
+import * as SignupProcedure from "./signup_procedure";
 
 // Import all table schema definitions
 import StorageRow from "./storage_table";
@@ -62,13 +62,13 @@ const tablesSchema = __schema({
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
-  __reducerSchema("change_password", ChangePasswordReducer),
-  __reducerSchema("setitem", SetitemReducer),
-  __reducerSchema("signup", SignupReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
 const proceduresSchema = __procedures(
+  __procedureSchema("change_password", ChangePasswordProcedure.params, ChangePasswordProcedure.returnType),
+  __procedureSchema("setitem", SetitemProcedure.params, SetitemProcedure.returnType),
+  __procedureSchema("signup", SignupProcedure.params, SignupProcedure.returnType),
 );
 
 /** The remote SpacetimeDB module schema, both runtime and type information. */
