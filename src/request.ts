@@ -1,3 +1,4 @@
+import { errorpopup } from "../web/html";
 import { LocalStored } from "./helpers";
 import { Schema } from "./struct";
 
@@ -94,7 +95,12 @@ export async function chat(messages: Message[], model: string):Promise<Message>{
       input: messages.map(m=>({role:m.role, content:m.content})),
       reasoning: { effort: "low" },
     }),
-  });
+  })
+
+
+  if (response.status != 200){
+    throw new Error("Model request failed with status " + response.status + ". maybe you need to provide an API key in the settings?")
+  }
 
   const data = (await response.json()) as ModelResponse;
   console.log("Model response:", data);

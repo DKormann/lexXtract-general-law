@@ -7,11 +7,13 @@ import { errorpopup } from "../web/html"
 
 
 export type BaseStored = {
+  key:string,
   get: ()=>Promise<JsonData | undefined>,
   set: (data:JsonData)=>Promise<void>
 }
 
 export type Stored <T extends JsonData> = {
+  key:string,
   schema: Schema,
   get: ()=>Promise<T>,
   set: (data:T)=>Promise<void>
@@ -28,6 +30,7 @@ const mkStored = <T extends JsonData>(base: BaseStored, schema: Schema): Stored<
     if (newData) await base.set(newData)
   }
   let res : Stored<T> = {
+    key:base.key,
     get: async ()=>{
       let res = await base.get() as T
       if (res == undefined) return res = fillSchema(schema) as T
@@ -143,7 +146,7 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
   .onConnect(c=>{
     let localUser = LocalStored<User>("current_user_remote_hashed", User, randUser())
     console.log(localUser.get())
-    let pwd = ()=>hash(localUser.get().passhash)
+    let pwd = ()=> localUser.get().passhash
 
     const signup = async (args:{userid:string, passhash:string}) => {
       console.log("Signing up user", args.userid)
@@ -154,27 +157,31 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
       }else errorpopup("error signing up")
     }
 
+    console.log("make db")
+
     let db:DB = {
       userid: localUser.get().userid,
       
       signup,
       async changePassword(newPassword: string) {
-        let res = await c.procedures.changePassword({userid: db.userid, passhash:pwd(), newPasshash: hash(newPassword)})
+        let newhash = hash(newPassword)
+        let res = await c.procedures.changePassword({userid: db.userid, passhash:pwd(), newPasshash: newhash})
         if (res.tag != "Success") throw new Error("Failed to change password")
-        signup({userid: db.userid, passhash: newPassword})
+        signup({userid: db.userid, passhash: newhash})
       },
 
       get<T extends JsonData>(key: string, schema: Schema, owner?: string) {
 
-        key += hash(JSON.stringify(schema))
+        let schema_key = key + hash(JSON.stringify(schema))
         owner ||= db.userid
-        let rkey = mkkey(owner, key)
+        let owner_key = mkkey(owner, schema_key)
 
         let base:BaseStored = {
+          key,
           get: ()=> new Promise<JsonData | undefined>((rs, rj)=>{
             let sub = c.subscriptionBuilder()
             .onApplied(c=>{
-              let r= c.db.storage.owner_key.find(rkey)
+              let r= c.db.storage.owner_key.find(owner_key)
               if (!r) return rs(undefined)
               rs(JSON.parse(r.value) as JsonData)
               sub.unsubscribe()
@@ -184,17 +191,21 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
               sub.unsubscribe()
               rj(e)
             })
-            .subscribe(`select * from storage where owner_key = '${rkey}'`)
+            .subscribe(`select * from storage where owner_key = '${owner_key}'`)
           }),
           async set(data:JsonData){
-            let res = await c.procedures.setitem({owner, passhash: pwd(), key, value: JSON.stringify(data)})
+            let res = await c.procedures.setitem({owner, passhash: pwd(), key: schema_key, value: JSON.stringify(data)})
             if (res.tag != "Success") throw new Error("Failed to set item in DB")
           }
         };
         return mkStored<T>(base, schema)
       }
     }
+    console.log("signin")
     db.signup(localUser.get()).then(()=>res(db))
+    .catch(()=>{
+      db.signup(randUser())
+    })
   })
   .onConnectError(e=>{
     console.error("Failed to connect to DB", e)

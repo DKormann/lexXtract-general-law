@@ -4,12 +4,10 @@ import { randUser, type Stored } from "../src/db";
 import { hash } from "../src/hash";
 import { LocalStored } from "../src/helpers";
 import { chat, localApiKey, type Message, request } from "../src/request";
-import { Schema, type JsonData } from "../src/struct";
+import { Schema, SchemaSchema, type JsonData } from "../src/struct";
 import { fillSchema, TaxonomySchema } from "../src/struct";
 import { background, body, border, button, color, div, errorpopup, h2, h3, height, input, margin, p, padding, popup, pre, span, style, table, td, textarea, tr, type HTMLArg } from "./html";
 import { viewer } from "./viewer";
-
-
 
 let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{
   return button(
@@ -27,7 +25,6 @@ let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{
   )
 }
 
-
 let locstring = location.href.split("?")[0] || ""
 
 
@@ -37,11 +34,6 @@ const models = LocalStored<Model[]>("models", Schema.array(Schema.string), [
   "openai/gpt-oss-120b",
   "anthropic/claude-opus-4.5",
 ])
-
-
-
-
-let module_list = db.get<ModPath[]>("modules", Schema.array(Schema.string))
 
 
 export type ModPath = {
@@ -78,6 +70,7 @@ let accountsettings = {
     return db.get(key, schema, owner)
   }
 }
+
 let loadUser = ()=>{
 
   let module_list = db.get<ModPath[]>("modules", Schema.array(ModPath))
@@ -86,6 +79,8 @@ let loadUser = ()=>{
   if (urlrequest) current_module.set(urlrequest)
   
   const show_module = (mod:ModPath) => {
+    module_list.get().then(mods=>{if (!mods.map(x=>JSON.stringify(x)).includes(JSON.stringify(mod))) module_list.set([...mods, mod])})
+
     
     let mod_db = <T extends JsonData> (key:string, schema:Schema) => {
       let st = db.get<T>(mod.name+":"+key, schema, mod.owner)
@@ -94,32 +89,46 @@ let loadUser = ()=>{
           h2(`You cannot edit this module`),
           p(`it is owned by ${mod.owner}`),
           p('do you need to make a copy of this module to edit?'),
-          button(`copy ${mod.name}`)
+          button(`copy ${mod.name}`, {onclick: async ()=>{
+            await Promise.all(Object.values(modState).map(s=>s.get().then(d=>db.get(s.key, s.schema, db.userid).set(d).then(()=>{
+              console.log("copied", s.key, d)
+            }))))
+
+            await current_module.set({name:mod.name, owner: db.userid})
+          }})
         )
       }
       return st
     }
+
+    let modState = {
+      taxonomy: mod_db("taxonomy", TaxonomySchema),
+      documents: mod_db("documents", Schema.record(Schema.string)),
+      prompt: mod_db<string>("prompt", Schema.string),
+      agent_msgs: mod_db<Message[]>("agent_msgs", Schema.array(Schema.object({
+        role: Schema.string,
+        content: Schema.string
+      }, ['role', 'content']))),
+      model: mod_db<string>("model/provider", Schema.string)
+    };
+
+
+    const Taxonomy = viewer(modState.taxonomy)
   
-    let taxonomy = mod_db("taxonomy", TaxonomySchema)
-    const Taxonomy = viewer(taxonomy)
-  
-    let documents = mod_db("documents", Schema.record(Schema.string))
-    const Documents = div(viewer(documents), button("+add", {
+    const Documents = div(viewer(modState.documents), button("+add", {
       onclick:()=>{
-        documents.get().then((docs)=>{
+        modState.documents.get().then((docs)=>{
           let title = prompt("doc title")
-          if (title) documents.set({...docs as {[key:string]:JsonData}, [title] : ""})
+          if (title) modState.documents.set({...docs as {[key:string]:JsonData}, [title] : ""})
         })
       }
     }))
   
-    let prompt_ = mod_db<string>("prompt", Schema.string)
-    const Prompt = viewer(prompt_)
-  
+    const Prompt = viewer(modState.prompt)
+
   
     const Agent = div()
     {
-      let model = mod_db<string>("model", Schema.string)
       let model_picker = div(style({
         position:"fixed",
         background: color.background,
@@ -136,7 +145,7 @@ let loadUser = ()=>{
               models.get()!.map(m=>
               p(
                 mkbutton(m, ()=> {
-                  model.set(m);
+                  modState.model.set(m);
                   pop.remove()
                 })
               )),
@@ -144,7 +153,7 @@ let loadUser = ()=>{
                 let name = prompt("choose model")
                 if (!name)return 
                 models.set([...models.get()!, name])
-                model.set(name)
+                modState.model.set(name)
                 pop.remove()
               }})
             )
@@ -152,27 +161,21 @@ let loadUser = ()=>{
           }}),
           button("reset chat", {
             onclick:async ()=>{
-              let msg = await prompt_.get()
-              msgs.set([{role:"system", content:msg}])
-              console.log(await msgs.get())
+              let msg = await modState.prompt.get()
+              modState.agent_msgs.set([{role:"system", content:msg}])
+              console.log(await modState.agent_msgs.get())
             }
           })
         )
       };
       setmodel(models.get()![0]!)
-      model.get().then(setmodel)
-      model.onupdate(()=>model.get().then(setmodel))
-  
-  
-      let msgs = mod_db<Message[]>("agent_msgs", Schema.array(Schema.object({
-        role: Schema.string,
-        content: Schema.string
-      }, ['role', 'content'])))
+      modState.model.get().then(setmodel)
+      modState.model.onupdate(()=>modState.model.get().then(setmodel))
   
       let msgs_view = div(style({marginBottom:"3em"}))
   
       let show_msgs = ()=>{
-        msgs.get().then(m=>{
+        modState.agent_msgs.get().then(m=>{
           msgs_view.replaceChildren(...(m as {role:string, content:string}[]).map(msg=>
   
             pre(
@@ -192,7 +195,7 @@ let loadUser = ()=>{
       }
   
       show_msgs()
-      msgs.onupdate(show_msgs)
+      modState.agent_msgs.onupdate(show_msgs)
   
       let intake = input({placeholder:"message",
         style:{
@@ -208,17 +211,17 @@ let loadUser = ()=>{
         },
         onkeydown: e=>{
           if (e.key == "Enter"){
-            msgs.get().then(m=>{
+            modState.agent_msgs.get().then(m=>{
               let nm:Message[] = [...m, {role:"user", content: intake.value}]
-              msgs.set(nm)
+              modState.agent_msgs.set(nm)
               .then(()=>{
                 intake.value = ""
-                model.get().then(mod=>{
+                modState.model.get().then(mod=>{
                   let hint = pre("...")
                   msgs_view.append(hint)
                   chat(nm, mod).then(res=>{
                     hint.remove()
-                    msgs.set([...nm, res])
+                    modState.agent_msgs.set([...nm, res])
                   }).catch(e=>{
                     hint.remove()
                     errorpopup(e)
@@ -371,7 +374,7 @@ let loadUser = ()=>{
             mods.map(m=>{
               let pp =  p(
                   button('-', {onclick:()=>{
-                    module_list.update(l=>l.filter(x=>x!=m))
+                    module_list.update(l=>l.filter(x=>JSON.stringify(x)!=JSON.stringify(m)))
                     pp.remove()
                   }}),
                   button(m.owner,"/", m.name, {onclick:()=>{
