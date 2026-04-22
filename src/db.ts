@@ -72,61 +72,6 @@ export type DB = {
 
 let rand = (digits:number) => Math.floor(Math.random()*10**digits).toString().padStart(digits, "0")
 
-// export const localDB= async():Promise<DB> =>{
-
-
-//   throw new Error("localDB is deprecated, use RemoteDB instead. localDB will be removed in a future version.")
-//   let randu = ()=>({userid: 'u' + rand(4), password: rand(6)})
-//   let localUser = LocalStored<{userid: string, password: string} >("current_user", randu() )
-//   let users = LocalStored<{[userid:string]: string}>("users", {})
-
-//   let db:DB = {
-//     userid : localUser.get().userid,
-
-//     async signup(userid: string, password: string) {
-//       let usersData = users.get()
-//       if (userid in usersData && usersData[userid] != hash(password)) throw new Error("user exists")
-//       localUser.set({userid, password})
-//       users.set({...usersData, [userid]: hash(password)})
-//       db.userid = userid
-//     },
-//     async logout(){
-//       localUser.set(randu())
-//       db.userid = localUser.get().userid
-//     },
-//     async changePassword(newPassword: string) {
-//       let local = localUser.get()
-//       if (!local) throw new Error("No user logged in")
-//       let usersData = users.get()
-//       if (!(local.userid in usersData) || usersData[local.userid] != hash(local.password)) throw new Error("Invalid password")
-//       users.set({...usersData, [local.userid]: hash(newPassword)})
-//       localUser.set({userid: local.userid, password: newPassword})
-//     },
-
-//     get<T extends JsonData>(key: string, schema: Schema, owner?: string) {
-//       owner = owner || db.userid
-//       let rkey = owner+"."+key+ hash(JSON.stringify(schema))
-//       // console.log("Getting DB key", rkey)
-//       let rowner = owner || db.userid
-//       let base:BaseStored = {
-//         async get(){
-//           let data = localStorage.getItem(rkey)
-//           if (!data) return undefined
-//           return JSON.parse(data) as JsonData
-//         },
-//         async set(data:JsonData){
-//           if (rowner != db.userid) throw new Error("Cannot set data for another user")
-//           localStorage.setItem(rkey, JSON.stringify(data))
-//         }
-//       };
-//       return mkStored<T>(base, schema)
-//     },
-//   }
-
-//   return db
-// }
-
-
 
 const mkkey = (owner:string, key:string) => owner.replaceAll(":", "_:") + ":" + key
 

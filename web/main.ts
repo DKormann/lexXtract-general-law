@@ -80,8 +80,8 @@ let loadUser = ()=>{
   
   const show_module = (mod:ModPath) => {
     module_list.get().then(mods=>{if (!mods.map(x=>JSON.stringify(x)).includes(JSON.stringify(mod))) module_list.set([...mods, mod])})
+    let modState: Stored<any>[] = []
 
-    
     let mod_db = <T extends JsonData> (key:string, schema:Schema) => {
       let st = db.get<T>(mod.name+":"+key, schema, mod.owner)
       if (mod.owner != db.userid) st.set = async (val:T)=>{
@@ -90,42 +90,36 @@ let loadUser = ()=>{
           p(`it is owned by ${mod.owner}`),
           p('do you need to make a copy of this module to edit?'),
           button(`copy ${mod.name}`, {onclick: async ()=>{
-            await Promise.all(Object.values(modState).map(s=>s.get().then(d=>db.get(s.key, s.schema, db.userid).set(d).then(()=>{
-              console.log("copied", s.key, d)
-            }))))
-
+            await Promise.all(modState.map(s=>s.get().then(d=>db.get(s.key, s.schema, db.userid).set(d).then(()=>{console.log("copied", s.key, d)}))))
             await current_module.set({name:mod.name, owner: db.userid})
           }})
         )
       }
+      modState.push(st as any as Stored<JsonData>)
       return st
     }
 
-    let modState = {
-      taxonomy: mod_db("taxonomy", TaxonomySchema),
-      documents: mod_db("documents", Schema.record(Schema.string)),
-      prompt: mod_db<string>("prompt", Schema.string),
-      agent_msgs: mod_db<Message[]>("agent_msgs", Schema.array(Schema.object({
-        role: Schema.string,
-        content: Schema.string
-      }, ['role', 'content']))),
-      model: mod_db<string>("model/provider", Schema.string)
-    };
+    const _taxonomy = mod_db("taxonomy", TaxonomySchema)
+    const Taxonomy = viewer(_taxonomy)
 
-
-    const Taxonomy = viewer(modState.taxonomy)
-  
-    const Documents = div(viewer(modState.documents), button("+add", {
+    const _documents = mod_db("documents", Schema.record(Schema.string))
+    const Documents = div(viewer(_documents), button("+add", {
       onclick:()=>{
-        modState.documents.get().then((docs)=>{
+        _documents.get().then((docs)=>{
           let title = prompt("doc title")
-          if (title) modState.documents.set({...docs as {[key:string]:JsonData}, [title] : ""})
+          if (title) _documents.set({...docs as {[key:string]:JsonData}, [title] : ""})
         })
       }
     }))
   
-    const Prompt = viewer(modState.prompt)
+    const _prompt = mod_db<string>("prompt", Schema.string)
+    const model = mod_db<string>("model/provider", Schema.string)
+    const Prompt = viewer(_prompt)
 
+    let agent_msgs = mod_db<Message[]>("agent_msgs", Schema.array(Schema.object({
+      role: Schema.string,
+      content: Schema.string
+    }, ['role', 'content'])))
   
     const Agent = div()
     {
@@ -145,7 +139,7 @@ let loadUser = ()=>{
               models.get()!.map(m=>
               p(
                 mkbutton(m, ()=> {
-                  modState.model.set(m);
+                  model.set(m);
                   pop.remove()
                 })
               )),
@@ -153,7 +147,7 @@ let loadUser = ()=>{
                 let name = prompt("choose model")
                 if (!name)return 
                 models.set([...models.get()!, name])
-                modState.model.set(name)
+                model.set(name)
                 pop.remove()
               }})
             )
@@ -161,21 +155,21 @@ let loadUser = ()=>{
           }}),
           button("reset chat", {
             onclick:async ()=>{
-              let msg = await modState.prompt.get()
-              modState.agent_msgs.set([{role:"system", content:msg}])
-              console.log(await modState.agent_msgs.get())
+              let msg = await _prompt.get()
+              agent_msgs.set([{role:"system", content:msg}])
+              console.log(await agent_msgs.get())
             }
           })
         )
       };
       setmodel(models.get()![0]!)
-      modState.model.get().then(setmodel)
-      modState.model.onupdate(()=>modState.model.get().then(setmodel))
+      model.get().then(setmodel)
+      model.onupdate(()=>model.get().then(setmodel))
   
       let msgs_view = div(style({marginBottom:"3em"}))
   
       let show_msgs = ()=>{
-        modState.agent_msgs.get().then(m=>{
+        agent_msgs.get().then(m=>{
           msgs_view.replaceChildren(...(m as {role:string, content:string}[]).map(msg=>
   
             pre(
@@ -195,7 +189,7 @@ let loadUser = ()=>{
       }
   
       show_msgs()
-      modState.agent_msgs.onupdate(show_msgs)
+      agent_msgs.onupdate(show_msgs)
   
       let intake = input({placeholder:"message",
         style:{
@@ -211,17 +205,17 @@ let loadUser = ()=>{
         },
         onkeydown: e=>{
           if (e.key == "Enter"){
-            modState.agent_msgs.get().then(m=>{
+            agent_msgs.get().then(m=>{
               let nm:Message[] = [...m, {role:"user", content: intake.value}]
-              modState.agent_msgs.set(nm)
+              agent_msgs.set(nm)
               .then(()=>{
                 intake.value = ""
-                modState.model.get().then(mod=>{
+                model.get().then(mod=>{
                   let hint = pre("...")
                   msgs_view.append(hint)
                   chat(nm, mod).then(res=>{
                     hint.remove()
-                    modState.agent_msgs.set([...nm, res])
+                    agent_msgs.set([...nm, res])
                   }).catch(e=>{
                     hint.remove()
                     errorpopup(e)

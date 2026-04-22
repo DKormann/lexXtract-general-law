@@ -33,19 +33,23 @@ const assert = (condition:boolean, message?:string)=>{if (!condition)throw new E
 const raise = (msg:string) => {throw new Error(msg)}
 
 
+let resolve = (ref:string, root:Schema):Schema=>{
+  if (!ref.startsWith("#/")) throw new Error("Only local references supported")
+  let parts = ref.split("/").slice(1)
+  let current: Schema = root
+  for (let part of parts){
+    if (typeof current != "object" || current == null || !(part in current)) throw new Error(`Invalid reference ${ref}`)
+    current = (current as any)[part]
+  }
+  return current as Schema
+}
+
 export const validate = (schema:Schema, object: any)=>{
 
   let deref = (s:Schema):Schema=>{
     if ("$ref" in s) {
       let ref = s["$ref"] as string
-      if (!ref.startsWith("#/")) throw new Error("Only local references supported")
-      let parts = ref.split("/").slice(1)
-      let current: Schema = schema
-      for (let part of parts){
-        if (typeof current != "object" || current == null || !(part in current)) throw new Error(`Invalid reference ${ref}`)
-        current = (current as any)[part]
-      }
-      return current as Schema
+      return resolve(ref, schema)
     }
     return s
   }
@@ -67,18 +71,20 @@ export const validate = (schema:Schema, object: any)=>{
       }
     } else if (typeof object == "string") {assert (s.type == "string")
     } else if (object instanceof Array){
-      if (s.type != "array") return raise("array expected")
+      if (s.type != "array") return raise("unexpected array")
       object.forEach(x=>go(s.items, x))
-    } else if (object instanceof Object){
+    } else if (typeof object == "object" && object != null){
       if (s.type != "object") return raise("not expected object but:" +s.type)
       Object.entries(object).forEach(([k,v])=>{
         let props = s.properties ?? {}
         if (k in props) go(props[k]!, v)
-        else assert (Boolean(s.additionalProperties))
+        else go(s.additionalProperties ?? raise("unexpected property "+k), v)
       })
       if (s.required) s.required.forEach(s=>assert(s in object))
     } else raise ("unexpeced type: "+typeof object)
   }
+
+  go(schema, object)
 }
 
 export const fillSchema = (schema:Schema):JsonData=>{
@@ -141,6 +147,28 @@ export const TaxonomySchema:Schema = Schema.object({
     }, ['description', 'itemSchema']))
   }, ['description']))
 }, ['categories'])
+
+
+
+export const parse = (s:string)=>JSON.parse(s)
+export const stringify = (d:JsonData)=>JSON.stringify(d, null, 2)
+
+export const schemaType = (s:Schema):string=>{
+  if (s.type) {
+    if (s.type == "array") return schemaType(s.items) + "[]"
+    if (s.type == "object") {
+      let props = s.properties ? Object.entries(s.properties).map(([k,v])=> `${k}${s.required?.includes(k) ? "" : "?"}: ${schemaType(v)}`) : []
+      if (s.additionalProperties) props.push(`[key:string]: ${schemaType(s.additionalProperties)}`)
+      return `{\n  ${props.join(",\n").replaceAll("\n", "\n  ")}\n}`
+    }
+    if (s.type == "string") return "string"
+  }
+
+  if ("$ref" in s) return `ref(${s["$ref"]})`
+  if ("anyOf" in s) return (s.anyOf as Schema[]).map(schemaType).join(" | ")
+  if ("const" in s) return stringify(s.const)
+  return "any"
+}
 
 
 

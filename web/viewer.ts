@@ -1,7 +1,7 @@
 import { db } from "../src/app";
 import type { Stored } from "../src/db";
-import type { JsonData } from "../src/struct";
-import { button, color, div, errorpopup, p, padding, popup, pre, style, textarea } from "./html";
+import { schemaType, stringify, validate, type JsonData } from "../src/struct";
+import { button, color, div, errorpopup, p, padding, popup, pre, span, style, textarea } from "./html";
 import type { ModPath } from "./main";
 
 export const jsonView = (d:JsonData):HTMLElement =>{
@@ -13,11 +13,13 @@ export const jsonView = (d:JsonData):HTMLElement =>{
     (typeof d == "string") ? (d ? pre(d) : empty) :
     (d instanceof Array) ? (d.length ? div(...d.map(jsonView)) : empty) :
     (d instanceof Object) ? Object.keys(d).length ? div(...Object.entries(d).map(([k,v])=>p(k, ":", jsonView(v)))) : empty :
-    errorpopup("Invalid data")
+    (typeof d == "number") ? pre(String(d)) :
+    errorpopup("Invalid data:"+JSON.stringify(d))
   )
 }
 
 export const viewer = <T extends JsonData>(data:Stored<T>, viewer:(d:JsonData)=>HTMLElement = jsonView) => {
+
 
   let editmode = false
   let bod = div("loading...")
@@ -30,7 +32,22 @@ export const viewer = <T extends JsonData>(data:Stored<T>, viewer:(d:JsonData)=>
   let el = div(but, bod)
 
   let dat:JsonData = ""
-  let editor = pre({contentEditable:true, style:{
+  let editstatus = p()
+  let schemaview = pre(style({ color:color.gray}), `expected type:\n${schemaType(data.schema)}`)
+
+  let editor = pre({contentEditable:true,
+    oninput:()=>{
+      try{
+        let d = JSON.parse(editor.textContent)
+        editor.textContent = stringify(d)
+        validate(data.schema, d)
+        editstatus.textContent = "ok"
+        editstatus.replaceChildren(span(style({color:color.green}), "ok"))
+      }catch(e){
+        editstatus.replaceChildren(span(style({color:color.red}), String(e)))
+      }
+    },
+  style:{
     padding:"1em",
     width: "100%",
   }})
@@ -41,7 +58,7 @@ export const viewer = <T extends JsonData>(data:Stored<T>, viewer:(d:JsonData)=>
     editmode = val
     if (editmode){
       editor.textContent = JSON.stringify(dat, null, 2)
-      bod.replaceChildren(cancel, editor)
+      bod.replaceChildren(cancel, editor, editstatus, schemaview)
       editor.focus()
       but.textContent = "save"
     }else{
