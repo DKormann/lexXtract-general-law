@@ -17,13 +17,16 @@ type ModelResponse = {
 };
 
 
-export const localApiKey = LocalStored<string>("api_key", "")
+export const localApiKey = LocalStored<string>("openrouter_api_key", "")
 
 function getApiKey(): string {
-  let key = localApiKey
-  if (!key.get()) key.set(prompt("provide openrouter key") || "")
-  if (!key.get()) throw new Error("Missing OpenRouter API key")
-  return key.get()!
+  let key = localApiKey.get()
+  if (!key) {
+    localApiKey.set(prompt("provide openrouter key") || "")
+    key = localApiKey.get()
+  }
+  if (!key) throw new Error("Missing OpenRouter API key")
+  return key
 }
 
 function cacheKey(parts: unknown[]): string {
@@ -31,12 +34,7 @@ function cacheKey(parts: unknown[]): string {
 }
 
 export async function request(promptText: string, model: string, tool: Tool, seed: number) {
-  // const key = cacheKey([promptText, model, tool, seed]);
 
-  // const cached = storage.getItem(key);
-  // if (cached) {
-  //   return JSON.parse(cached) as { cost: number; output: unknown };
-  // }
 
   const response = await fetch("https://openrouter.ai/api/v1/responses", {
     method: "POST",
@@ -75,7 +73,6 @@ export async function request(promptText: string, model: string, tool: Tool, see
     output: JSON.parse(functionCall.arguments),
   };
 
-  // storage.setItem(key, JSON.stringify(result));
   return result;
 }
 
@@ -85,11 +82,6 @@ export type Message = {
 }
 
 export async function chat(messages: Message[], model: string):Promise<Message>{
-  const key = cacheKey([messages, model])
-  // const cached = storage.getItem(key);
-  // if (cached) {
-  //   return JSON.parse(cached) as Message;
-  // }
 
   const response = await fetch("https://openrouter.ai/api/v1/responses", {
     method: "POST",

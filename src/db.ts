@@ -1,6 +1,8 @@
+// import spacetimedb from "../backend/spacetimedb/src"
 import { hash } from "./hash"
 import { LocalStored, storage } from "./helpers"
 import { fillSchema, validate, type JsonData, type Schema } from "./struct"
+import { DbConnection } from "./module_bindings"
 
 
 export type BaseStored = {
@@ -67,15 +69,13 @@ export type DB = {
 
 let rand = (digits:number) => Math.floor(Math.random()*10**digits).toString().padStart(digits, "0")
 
-export const localDB: ()=>DB = ()=>{
+export const localDB= async():Promise<DB> =>{
+
+
 
   let randu = ()=>({userid: 'u' + rand(4), password: rand(6)})
-
   let localUser = LocalStored<{userid: string, password: string} >("current_user", randu() )
-
   let users = LocalStored<{[userid:string]: string}>("users", {})
-
-
 
   let db:DB = {
     userid : localUser.get().userid,
@@ -101,7 +101,9 @@ export const localDB: ()=>DB = ()=>{
     },
 
     get<T extends JsonData>(key: string, schema: Schema, owner?: string) {
+      owner = owner || db.userid
       let rkey = owner+"."+key+ hash(JSON.stringify(schema))
+      // console.log("Getting DB key", rkey)
       let rowner = owner || db.userid
       let base:BaseStored = {
         async get(){
@@ -118,8 +120,118 @@ export const localDB: ()=>DB = ()=>{
     },
   }
 
-
-
   return db
 }
 
+{
+
+  console.log("Connecting to DB...")
+
+  DbConnection.builder()
+  .withUri("wss://maincloud.spacetimedb.com/lexxtract")
+  .withDatabaseName("lexxtract")
+  .onConnect(c=>{
+
+    let userid = "bob"
+    let passhash = hash("password123")
+
+
+    c.reducers.signup({userid, passhash}).then(()=>{
+      console.log("Signed up")
+    })
+
+  })
+  .onConnectError(e=>{
+    console.error("Failed to connect to DB", e)
+  })
+  .build()
+}
+
+const mkkey = (owner:string, key:string) => owner.replaceAll(":", "_:") + ":" + key
+
+
+export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
+  DbConnection.builder()
+  .withUri("wss://maincloud.spacetimedb.com/lexxtract")
+  .withDatabaseName("lexxtract")
+  .onConnect(c=>{
+    console.log("Connected to DB")
+    let randu = ()=>({userid: 'u' + rand(4), password: rand(6)})
+    let localUser = LocalStored<{userid: string, password: string} >("current_user_remote", randu())
+    let pwd = ()=>hash(localUser.get().password)
+
+    let db:DB = {
+      userid: localUser.get().userid,
+      async signup(userid: string, password: string) {
+        await c.reducers.signup({userid, passhash:pwd()})
+        localUser.set({userid, password})
+        db.userid = userid
+      },
+      async logout(){
+        localUser.set(randu())
+        db.userid = localUser.get().userid
+      },
+      async changePassword(newPassword: string) {
+        let local = localUser.get()
+        if (!local) throw new Error("No user logged in")
+        await c.reducers.changePassword({userid: db.userid, passhash:pwd(), newPasshash: hash(newPassword)})
+        localUser.set({userid: local.userid, password: newPassword})
+      },
+
+      get<T extends JsonData>(key: string, schema: Schema, owner?: string) {
+
+        key += hash(JSON.stringify(schema))
+        owner ||= db.userid
+        let rkey = mkkey(owner, key)
+
+        let base:BaseStored = {
+          get: ()=> new Promise<JsonData | undefined>((rs, rj)=>{
+            console.log("Subscribing to DB key", rkey)
+            c.subscriptionBuilder()
+            .onApplied(c=>{
+              console.log("DB update applied, checking for key", rkey)
+              let r= c.db.storage.owner_key.find(rkey)
+              if (!r) return rs(undefined)
+              rs(JSON.parse(r.value) as JsonData)
+            })
+            .onError(e=>{
+              console.error("DB subscription error", e)
+              rj(e)
+            })
+            .subscribe(`select * from storage where owner_key = '${rkey}'`)
+            
+          }),
+          async set(data:JsonData){
+            c.reducers.setitem({owner, passhash: pwd(), key, value: JSON.stringify(data)})
+          }
+        };
+        return mkStored<T>(base, schema)
+      }
+    }
+
+    db.signup(db.userid, localUser.get().password).then(()=>{
+      console.log("Signed up to remote DB as", db.userid)
+      res(db)
+    })
+  })
+  .onConnectError(e=>{
+    console.error("Failed to connect to DB", e)
+    err(e)
+  })
+  .build()
+})
+
+
+{
+  let db = await RemoteDB()
+  let test_schema:Schema = {
+    type: "object",
+    properties: {
+      name: {type: "string"},
+    },
+  }
+  let item = db.get("test_item", test_schema)
+  item.set({name: "Alice"})
+  let data = await item.get()
+  console.log("Got data", data)
+}

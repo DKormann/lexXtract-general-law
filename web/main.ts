@@ -1,5 +1,6 @@
 
 import { db  } from "../src/app";
+import type { Stored } from "../src/db";
 import { LocalStored } from "../src/helpers";
 import { chat, localApiKey, type Message, request } from "../src/request";
 import { Schema, type JsonData } from "../src/struct";
@@ -7,8 +8,7 @@ import { fillSchema, TaxonomySchema } from "../src/struct";
 import { background, body, border, button, color, div, errorpopup, h2, h3, height, input, margin, p, padding, popup, pre, span, style, table, td, textarea, tr, type HTMLArg } from "./html";
 import { viewer } from "./viewer";
 
-let page = div({
-})
+let page = div()
 
 let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{
   return button(
@@ -27,6 +27,9 @@ let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{
 }
 
 
+let locstring = location.href.split("?")[0] || ""
+
+
 type Model = string
 
 const models = LocalStored<Model[]>("models", [
@@ -35,7 +38,7 @@ const models = LocalStored<Model[]>("models", [
 ])
 
 
-let titlebar = h2("lexxtract")
+let titlebar = h2()
 
 let module_list = db.get<ModPath[]>("modules", Schema.array(Schema.string))
 
@@ -51,24 +54,27 @@ let header = div(
   }}),
   button("pick module", {
   onclick:async ()=>{
-
     let mods = await module_list.get()
     let pop = popup(
       h3("choose a module"),
       mods.map(m=>{
-        return p(button(m.owner,"/", m.name, {onclick:()=>{
-          console.log("Selected module", m)
-          current_module.set(m)
-          pop.remove()
-        }}))
+        let pp =  p(
+            button('-', {onclick:()=>{
+              module_list.update(l=>l.filter(x=>x!=m))
+              pp.remove()
+            }}),
+            button(m.owner,"/", m.name, {onclick:()=>{
+            current_module.set(m)
+            pop.remove()
+          }})
+        )
+        return pp
       })
     )
   }
 }))
 
-body.append(header,
-  page
-)
+body.append(header,page)
 
 
 type ModPath = {
@@ -76,8 +82,32 @@ type ModPath = {
   name: string
 }
 
-let current_module = db.get<ModPath>("current_module", Schema.object({owner: Schema.string, name: Schema.string}, ["owner", "name"]))
+let urlrequest:ModPath | null = null
 
+location.search.split("&").forEach(param=>{
+  if (param.startsWith("?")) param = param.slice(1)
+  console.log("URL param", param)
+  let [key, value] = param.split("=")
+  if (key == "module" && value){
+    try {
+      urlrequest = JSON.parse(decodeURIComponent(value)) as ModPath;
+      location.search = ""
+    }
+    catch(e) {console.error("Failed to parse module from URL", e)}
+  }
+})
+
+
+
+
+let current_module:Stored<ModPath> = db.get<ModPath>("current_module", Schema.object({owner: Schema.string, name: Schema.string}, ["owner", "name"]))
+const reload_user = () => {
+  current_module = db.get<ModPath>("current_module", Schema.object({owner: Schema.string, name: Schema.string}, ["owner", "name"]))
+  module_list = db.get<ModPath[]>("modules", Schema.array(Schema.string))
+  current_module.get().then(show_module)
+}
+
+if (urlrequest) current_module.set(urlrequest)
 
 current_module.get().then(m=>{
   show_module(m)
@@ -88,7 +118,6 @@ current_module.onupdate(async ()=>{
   let mod = await current_module.get()
   if (mod) show_module(mod)
 })
-
 
 const show_module = (mod:ModPath) => {
 
@@ -193,6 +222,11 @@ const show_module = (mod:ModPath) => {
         width:"40vw",
         position: "fixed",
         bottom:"1em",
+        fontSize:"1.1em",
+        padding:"0.5em 1em",
+        borderRadius:".4em",
+        border:`4px solid ${color.gray}`,
+        background: color.lightgray,
       },
       onkeydown: e=>{
         if (e.key == "Enter"){
@@ -202,9 +236,14 @@ const show_module = (mod:ModPath) => {
             .then(()=>{
               intake.value = ""
               model.get().then(mod=>{
-                chat(nm, mod)
-                .then(res=>{
+                let hint = pre("...")
+                msgs_view.append(hint)
+                chat(nm, mod).then(res=>{
+                  hint.remove()
                   msgs.set([...nm, res])
+                }).catch(e=>{
+                  hint.remove()
+                  errorpopup(e)
                 })
               })
             })
@@ -232,7 +271,11 @@ const show_module = (mod:ModPath) => {
           td("user id: "),
           td(db.userid ?? "<none>"),
           td(
-            button("logout", {onclick:()=>{db.logout();mksettings()}}),
+            button("logout", {onclick:()=>{
+
+              db.logout();
+              reload_user()
+            }}),
             button("switch account", {onclick:()=>{
             let userid = input({placeholder:"user id"})
             let pwd = input({type:"password", placeholder:"password"})
@@ -245,7 +288,7 @@ const show_module = (mod:ModPath) => {
                 tr(td(),td(button("login", {onclick:()=>{
                   db.signup(userid.value,pwd.value).catch(errorpopup)
                   pop.remove()
-                  mksettings()
+                  reload_user()
                 }}))),
               )
             )
@@ -320,7 +363,25 @@ const show_module = (mod:ModPath) => {
   ))
   renderSideBar(defaultSection)
 
-  titlebar.textContent = "lexxtract : " + mod.owner + " / " + (mod.name || "unnamed module")
+  let share = span("🔗share", {
+    style:{
+      cursor:"pointer",
+      marginLeft:"1em",
+      fontSize:"0.8em",
+      color:color.gray,
+      border:`1px solid ${color.gray}`,
+      padding:"0.2em",
+      borderRadius:".3em"
+    },
+    onclick:()=>{
+      navigator.clipboard.writeText(locstring+"?module="+encodeURIComponent(JSON.stringify(mod)))
+      share.textContent = "✅copied!"
+      setTimeout(() => {share.textContent = "🔗share"}, 1000);
+    }})
+  titlebar.replaceChildren("lexxtract : " + (mod.owner == db.userid ? "" : mod.owner + " / ") + (mod.name || "unnamed module"),
+  share
+  )
+
 
   page.replaceChildren(
     div(
@@ -329,7 +390,6 @@ const show_module = (mod:ModPath) => {
         display:"flex",
         flexDirection:"row",
         gap:"2em",
-
       }),
       sidebar,
       contentbar

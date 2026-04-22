@@ -1,4 +1,4 @@
 import { localDB } from "./db";
 
-export const db = localDB()
+export const db = await localDB()
 
