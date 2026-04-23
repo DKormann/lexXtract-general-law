@@ -1,3 +1,4 @@
+import type { FunctionDef } from "../web/agent_functions"
 import type { Stored } from "./db"
 import type { JsonData, Schema, Taxonomy } from "./struct"
 
@@ -18,6 +19,7 @@ export type Module = {
   taxonomy: Stored<Taxonomy>
   documents: Stored<{[key:string]: string}>,
   extraction: Stored<JsonData>,
+  functions: Stored<{[key:string]: FunctionDef}>,
   prompt: Stored<string>,
 }
 

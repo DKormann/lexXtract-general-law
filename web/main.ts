@@ -1,5 +1,5 @@
 
-import { mkFunctions } from "../src/agent_functions";
+import { FunctionSchema, mkFunctions } from "./agent_functions";
 import { db  } from "../src/app";
 import { randUser, type Stored } from "../src/db";
 import { hash } from "../src/hash";
@@ -10,22 +10,8 @@ import { fillSchema, TaxonomySchema, type Taxonomy} from "../src/struct";
 import type { Module } from "../src/types";
 import { background, body, border, button, color, div, errorpopup, h2, h3, height, input, margin, p, padding, popup, pre, span, style, table, td, textarea, tr, type HTMLArg } from "./html";
 import { viewer } from "./viewer";
+import { mkAgent } from "./agent";
 
-let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{
-  return button(
-    text,{onclick,
-      style:{
-        background:color.gray,
-        border:"unset",
-        color:color.color,
-        padding:"0.5em 1em",
-        borderRadius:".3em",
-        cursor:"pointer",
-        margin:"0 0.5em"
-      }
-    }
-  )
-}
 
 let locstring = location.href.split("?")[0] || ""
 
@@ -115,6 +101,7 @@ let loadUser = ()=>{
 
     let module: Module = {
       db: mod_db,
+      functions: mod_db("functions", Schema.record(FunctionSchema)),
       taxonomy,
       extraction,
       documents: mod_db<{[key:string]: string}>("documents", Schema.record(Schema.string)),
@@ -133,127 +120,11 @@ let loadUser = ()=>{
       }
     }))
   
-    const model = module.db<string>("model/provider", Schema.string)
     const Prompt = viewer(module.prompt)
 
-    let agent_msgs = module.db<Message[]>("agent_msgs", Schema.array(Schema.object({
-      role: Schema.string,
-      content: Schema.string
-    }, ['role', 'content'])))
   
-    const Agent = div()
-    {
-      let model_picker = div(style({
-        position:"fixed",
-        background: color.background,
-        padding:"0.5em",
-        borderRadius:".3em",
-        top:"5em",
-      }))
-      
-      let setmodel = (m:string)=>{
-        model_picker.replaceChildren("Model: ",
-          button(m || "none", {onclick:()=>{
-            let mkpop = ()=>popup(
-              h2("choose a model"),
-              models.get()!.map(m=>
-              p(
-                mkbutton(m, ()=> {
-                  model.set(m);
-                  pop.remove()
-                })
-              )),
-              button("+add", {onclick:()=>{
-                let name = prompt("choose model")
-                if (!name)return 
-                models.set([...models.get()!, name])
-                model.set(name)
-                pop.remove()
-              }})
-            )
-            let pop = mkpop()
-          }}),
-          button("reset chat", {
-            onclick:async ()=>{
-              let msg = await module.prompt.get()
-              agent_msgs.set([{role:"system", content:msg}])
-              console.log(await agent_msgs.get())
-            }
-          })
-        )
-      };
-      setmodel(models.get()![0]!)
-      model.get().then(setmodel)
-      model.onupdate(()=>model.get().then(setmodel))
-  
-      let msgs_view = div(style({marginBottom:"3em"}))
-  
-      let show_msgs = ()=>{
-        agent_msgs.get().then(m=>{
-          msgs_view.replaceChildren(...(m as {role:string, content:string}[]).map(msg=>
-  
-            pre(
-              style({
-                width:"fit-content",
-                fontWeight: msg.role == "user" ? "bold" : "normal",
-                fontStyle: msg.role == "system" ? "italic" : "none",
-                padding: ".2em",
-                margin: "0",
-                paddingLeft: msg.role == "user" ? "0" : "1em",
-                textWrap: "wrap",
-              }),
-              msg.content,
-            )
-          ))
-        })
-      }
-  
-      show_msgs()
-      agent_msgs.onupdate(show_msgs)
-  
-      let intake = input({placeholder:"message",
-        style:{
-          width:"40vw",
-          position: "fixed",
-          bottom:"1em",
-          fontSize:"1.1em",
-          padding:"0.5em 1em",
-          borderRadius:".4em",
-          border:`4px solid ${color.gray}`,
-          background: color.lightgray,
-          color: color.color,
-        },
-        onkeydown: e=>{
-          if (e.key == "Enter"){
-            agent_msgs.get().then(m=>{
-              let nm:Message[] = [...m, {role:"user", content: intake.value}]
-              agent_msgs.set(nm)
-              .then(()=>{
-                intake.value = ""
-                model.get().then(mod=>{
-                  let hint = pre("...")
-                  msgs_view.append(hint)
-                  chat(nm, mod).then(res=>{
-                    hint.remove()
-                    agent_msgs.set([...nm, res])
-                  }).catch(e=>{
-                    hint.remove()
-                    errorpopup(e)
-                  })
-                })
-              })
-            })
-          }
-        }
-      })
-      Agent.append(
-        model_picker,
-        msgs_view,
-        intake
-      )
-    }
-
-    let Functions = mkFunctions(module)
+    let Functions = await mkFunctions(module)
+    let Agent = await mkAgent(module)
   
     let Settings =div()
     let mksettings =()=> {
@@ -309,7 +180,6 @@ let loadUser = ()=>{
     const sections : {[key:string]: HTMLElement} = {
       Taxonomy,
       Documents,
-      Prompt,
       Extract: viewer(module.extraction),
       Agent,
       Functions,

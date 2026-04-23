@@ -1,12 +1,12 @@
 import { errorpopup } from "../web/html";
 import { LocalStored } from "./helpers";
 import { Schema } from "./struct";
+import { Message } from "../web/agent";
 
-type Tool = {
+export type Tool = {
   name: string;
   description: string;
-  argname: string;
-  argschema: Schema;
+  parameters: Schema;
 };
 
 type ModelResponse = {
@@ -52,11 +52,7 @@ export async function request(promptText: string, model: string, tool: Tool, see
           type: "function",
           name: tool.name,
           description: tool.description,
-          parameters: {
-            type: "object",
-            properties: { [tool.argname]: tool.argschema },
-            required: [tool.argname],
-          },
+          parameters: tool.parameters,
         },
       ],
       tool_choice: { type: "function", name: tool.name },
@@ -77,12 +73,7 @@ export async function request(promptText: string, model: string, tool: Tool, see
   return result;
 }
 
-export type Message = {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
-
-export async function chat(messages: Message[], model: string):Promise<Message>{
+export async function chat(history: Message[], model: string, tools: Tool[] = []):Promise<Message[]>{
 
   const response = await fetch("https://openrouter.ai/api/v1/responses", {
     method: "POST",
@@ -92,8 +83,14 @@ export async function chat(messages: Message[], model: string):Promise<Message>{
     },
     body: JSON.stringify({
       model,
-      input: messages.map(m=>({role:m.role, content:m.content})),
+      input: history.map(m=>({role:m.role, content:m.content})),
       reasoning: { effort: "low" },
+      tools: tools.map(tool=>({
+        type: "function",
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      })),
     }),
   })
 
@@ -104,17 +101,24 @@ export async function chat(messages: Message[], model: string):Promise<Message>{
 
   const data = (await response.json()) as ModelResponse;
   console.log("Model response:", data);
-  
-  const responseMessage = data.output.find((item) => item.type == "message");
-  if (!responseMessage) throw new Error("Model response did not include a text message");
 
-  const result = {
-    role: "assistant",
-    content: responseMessage.content[0]!.text,
-  } as Message;
+  console.log("Full model response:", data);
 
-  // storage.setItem(key, JSON.stringify(result));
+  let resp: Message[] = data.output.map(item=>{
+    if (item.type == "message" && item.content[0]?.type == "output_text"){
+      return {role:"assistant", content: item.content[0].text} as Message
+    }
+    if (item.type == "function_call"){
+      console.log("Function call in model response:", item)
+      // return {role:"assistant", content:"", toolcall:{tool: item.name, args: JSON.parse(item.arguments)}} as Message
+      let fname = item.name
+      let args = JSON.parse(item.arguments)
+      return {role:"assistant", content:"", toolcall:{tool: fname, args}} as Message
+    }
+  })
+  .filter(x=>x != undefined)
 
-  return result;
+  return resp
+
 
 }

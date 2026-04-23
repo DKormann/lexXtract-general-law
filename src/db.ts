@@ -24,23 +24,24 @@ export type Stored <T extends JsonData> = {
 
 const mkStored = <T extends JsonData>(base: BaseStored, schema: Schema): Stored<T> => {
   let listeners: (()=>void)[] = []
+  let get = async ()=>{
+    let res = await base.get() as T
+    if (res == undefined) return res = fillSchema(schema) as T
+    return res
+  }
+  let set = async (data:T)=>{
+    validate(schema, data)
+    await base.set(data)
+    listeners.forEach(l=>l())
+  }
   let update = async (updater: (data:T)=>T | Promise<T> | void) => {
-    let data = await base.get() as T
-    let newData = await updater(data)
-    if (newData) await base.set(newData)
+    let newData = await updater(await res.get())
+    if (newData) await set(newData)
   }
   let res : Stored<T> = {
     key:base.key,
-    get: async ()=>{
-      let res = await base.get() as T
-      if (res == undefined) return res = fillSchema(schema) as T
-      return res
-    },
-    set: async (data:T)=>{
-      validate(schema, data)
-      await base.set(data)
-      listeners.forEach(l=>l())
-    },
+    get,
+    set,
     schema,
     onupdate: listeners.push.bind(listeners),
     update,
@@ -136,6 +137,11 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
                 let r= c.db.storage.owner_key.find(owner_key)
                 if (!r) return rs(undefined)
                 cache = JSON.parse(r.value) as JsonData
+                try{
+                  validate(schema, cache)
+                }catch(e){
+                  cache = fillSchema(schema)
+                }
                 rs(cache)
                 sub.unsubscribe()
               })

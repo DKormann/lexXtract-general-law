@@ -55,6 +55,7 @@ export const validate = (schema:Schema, object: any)=>{
   }
 
   let go = (s:Schema, object:any)=>{
+    if (object == undefined) raise("undefined value")
     s = deref(s)
     if (s.type == undefined){
       if ("anyOf" in s){
@@ -88,10 +89,15 @@ export const validate = (schema:Schema, object: any)=>{
 }
 
 export const fillSchema = (schema:Schema):JsonData=>{
+  console.log("Filling schema", schema)
   if (schema.type == "string") return ""
   if (schema.type == "array") return []
   if (schema.type == "object"){
     return Object.fromEntries((schema.required ?? []).map(k=> [k, fillSchema(schema.properties![k]!)]))
+  }
+  if (schema.type == undefined){
+    if ("anyOf" in schema && schema.anyOf instanceof Array) return fillSchema(schema.anyOf[0] as Schema)
+    if ("const" in schema) return schema.const
   }
   throw new Error("Invalid schema" + JSON.stringify(schema))
 

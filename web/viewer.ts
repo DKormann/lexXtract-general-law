@@ -14,6 +14,7 @@ export const jsonView = (d:JsonData):HTMLElement =>{
     (d instanceof Array) ? (d.length ? div(...d.map(jsonView)) : empty) :
     (d instanceof Object) ? Object.keys(d).length ? div(...Object.entries(d).map(([k,v])=>p(k, ":", jsonView(v)))) : empty :
     (typeof d == "number") ? pre(String(d)) :
+    (d==undefined) ? pre("undefined") :
     errorpopup("Invalid data:"+JSON.stringify(d))
   )
 }
