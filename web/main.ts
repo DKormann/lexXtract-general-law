@@ -1,11 +1,13 @@
 
+import { mkFunctions } from "../src/agent_functions";
 import { db  } from "../src/app";
 import { randUser, type Stored } from "../src/db";
 import { hash } from "../src/hash";
 import { LocalStored } from "../src/helpers";
 import { chat, localApiKey, type Message, request } from "../src/request";
-import { Schema, SchemaSchema, type JsonData } from "../src/struct";
-import { fillSchema, TaxonomySchema } from "../src/struct";
+import { Schema, SchemaSchema, Taxonomy2Schema, type JsonData } from "../src/struct";
+import { fillSchema, TaxonomySchema, type Taxonomy} from "../src/struct";
+import type { Module } from "../src/types";
 import { background, body, border, button, color, div, errorpopup, h2, h3, height, input, margin, p, padding, popup, pre, span, style, table, td, textarea, tr, type HTMLArg } from "./html";
 import { viewer } from "./viewer";
 
@@ -77,8 +79,13 @@ let loadUser = ()=>{
   let current_module = db.get<ModPath>("current_module", ModPath)
 
   if (urlrequest) current_module.set(urlrequest)
+
+
   
-  const show_module = (mod:ModPath) => {
+  const show_module = async (mod:ModPath) => {
+
+
+
     module_list.get().then(mods=>{if (!mods.map(x=>JSON.stringify(x)).includes(JSON.stringify(mod))) module_list.set([...mods, mod])})
     let modState: Stored<any>[] = []
 
@@ -99,24 +106,37 @@ let loadUser = ()=>{
       return st
     }
 
-    const _taxonomy = mod_db("taxonomy", TaxonomySchema)
-    const Taxonomy = viewer(_taxonomy)
+    const taxonomy = mod_db<Taxonomy>("taxonomy", TaxonomySchema)
 
-    const _documents = mod_db("documents", Schema.record(Schema.string))
-    const Documents = div(viewer(_documents), button("+add", {
+    taxonomy.onupdate(()=>{
+      show_module(mod)
+    })
+    const extraction = mod_db<JsonData>("extraction", await taxonomy.get().then(t=>Taxonomy2Schema(t)))
+
+    let module: Module = {
+      db: mod_db,
+      taxonomy,
+      extraction,
+      documents: mod_db<{[key:string]: string}>("documents", Schema.record(Schema.string)),
+      prompt: mod_db<string>("prompt", Schema.string)
+    }
+
+
+    const Taxonomy = viewer(taxonomy)
+
+    const Documents = div(viewer(module.documents), button("+add", {
       onclick:()=>{
-        _documents.get().then((docs)=>{
+        module.documents.get().then((docs)=>{
           let title = prompt("doc title")
-          if (title) _documents.set({...docs as {[key:string]:JsonData}, [title] : ""})
+          if (title) module.documents.set({...docs as {[key:string]:string}, [title] : ""})
         })
       }
     }))
   
-    const _prompt = mod_db<string>("prompt", Schema.string)
-    const model = mod_db<string>("model/provider", Schema.string)
-    const Prompt = viewer(_prompt)
+    const model = module.db<string>("model/provider", Schema.string)
+    const Prompt = viewer(module.prompt)
 
-    let agent_msgs = mod_db<Message[]>("agent_msgs", Schema.array(Schema.object({
+    let agent_msgs = module.db<Message[]>("agent_msgs", Schema.array(Schema.object({
       role: Schema.string,
       content: Schema.string
     }, ['role', 'content'])))
@@ -155,7 +175,7 @@ let loadUser = ()=>{
           }}),
           button("reset chat", {
             onclick:async ()=>{
-              let msg = await _prompt.get()
+              let msg = await module.prompt.get()
               agent_msgs.set([{role:"system", content:msg}])
               console.log(await agent_msgs.get())
             }
@@ -232,6 +252,8 @@ let loadUser = ()=>{
         intake
       )
     }
+
+    let Functions = mkFunctions(module)
   
     let Settings =div()
     let mksettings =()=> {
@@ -282,17 +304,19 @@ let loadUser = ()=>{
       ))
     }
     mksettings()
-  
+
     
     const sections : {[key:string]: HTMLElement} = {
       Taxonomy,
       Documents,
       Prompt,
+      Extract: viewer(module.extraction),
       Agent,
+      Functions,
       Settings,
     }
   
-    let defaultSection = "Agent"
+    let defaultSection = LocalStored<string>("default_section", Schema.string, "Agent")
   
     let content = div()
   
@@ -307,7 +331,10 @@ let loadUser = ()=>{
     )
   
     let sidebar = div()
-    let renderSideBar = (item:string) => sidebar.replaceChildren(div(
+    let renderSideBar = (item:string) =>{
+      defaultSection.set(item)
+      return sidebar.replaceChildren(div(
+
       style({
         display:"flex",
         flexDirection:"column",
@@ -329,8 +356,8 @@ let loadUser = ()=>{
           onclick: ()=>renderSideBar(k)
         })
       })
-    ))
-    renderSideBar(defaultSection)
+    ))}
+    if (defaultSection.get() in sections) renderSideBar(defaultSection.get()!)
   
     let share = span("🔗share", {
       style:{

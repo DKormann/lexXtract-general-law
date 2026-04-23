@@ -1,12 +1,12 @@
 import { db } from "../src/app";
 import type { Stored } from "../src/db";
-import { schemaType, stringify, validate, type JsonData } from "../src/struct";
+import { Schema, schemaType, stringify, validate, type JsonData } from "../src/struct";
 import { button, color, div, errorpopup, p, padding, popup, pre, span, style, textarea } from "./html";
 import type { ModPath } from "./main";
 
 export const jsonView = (d:JsonData):HTMLElement =>{
 
-  let empty = pre(style({fontStyle:"italic"}), `<empty ${typeof d}>`)
+  let empty = pre(style({fontStyle:"italic"}), `<empty ${d instanceof Array? "array": typeof d}>`)
 
   return div(
     style({paddingLeft:"0.5em", borderLeft:"2px solid "+color.gray, }),
@@ -18,7 +18,13 @@ export const jsonView = (d:JsonData):HTMLElement =>{
   )
 }
 
-export const viewer = <T extends JsonData>(data:Stored<T>, viewer:(d:JsonData)=>HTMLElement = jsonView) => {
+export const viewer = <T extends JsonData>(
+  data: {
+    get: ()=>Promise<T>,
+    set: (t:T)=>Promise<void>,
+    schema: Schema
+  },
+  viewer:(d:JsonData)=>HTMLElement = jsonView) => {
 
 
   let editmode = false
@@ -39,7 +45,6 @@ export const viewer = <T extends JsonData>(data:Stored<T>, viewer:(d:JsonData)=>
     oninput:()=>{
       try{
         let d = JSON.parse(editor.textContent)
-        editor.textContent = stringify(d)
         validate(data.schema, d)
         editstatus.textContent = "ok"
         editstatus.replaceChildren(span(style({color:color.green}), "ok"))
@@ -78,13 +83,13 @@ export const viewer = <T extends JsonData>(data:Stored<T>, viewer:(d:JsonData)=>
     }
   }
 
-  data.onupdate(()=>{
-    data.get().then(d=>{
-      dat = d
-      if (editmode) setedit(true)
-      else bod.replaceChildren(viewer(dat))
-    })
-  })
+  // data.onupdate(()=>{
+  //   data.get().then(d=>{
+  //     dat = d
+  //     if (editmode) setedit(true)
+  //     else bod.replaceChildren(viewer(dat))
+  //   })
+  // })
 
   data.get().then(d=>{
     dat = d

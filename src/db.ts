@@ -104,6 +104,9 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
 
     console.log("make db")
 
+    const hot_cache = new Map<string, Stored<JsonData>>()
+    
+
     let db:DB = {
       userid: localUser.get().userid,
       
@@ -121,29 +124,42 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
         owner ||= db.userid
         let owner_key = mkkey(owner, schema_key)
 
-        let base:BaseStored = {
-          key,
-          get: ()=> new Promise<JsonData | undefined>((rs, rj)=>{
-            let sub = c.subscriptionBuilder()
-            .onApplied(c=>{
-              let r= c.db.storage.owner_key.find(owner_key)
-              if (!r) return rs(undefined)
-              rs(JSON.parse(r.value) as JsonData)
-              sub.unsubscribe()
-            })
-            .onError(e=>{
-              console.error("DB subscription error", e)
-              sub.unsubscribe()
-              rj(e)
-            })
-            .subscribe(`select * from storage where owner_key = '${owner_key}'`)
-          }),
-          async set(data:JsonData){
-            let res = await c.procedures.setitem({owner, passhash: pwd(), key: schema_key, value: JSON.stringify(data)})
-            if (res.tag != "Success") throw new Error("Failed to set item in DB")
-          }
-        };
-        return mkStored<T>(base, schema)
+        if (!hot_cache.has(owner_key)){
+
+          let cache:JsonData | undefined = undefined
+          let base:BaseStored = {
+            key,
+            get: ()=> new Promise<JsonData | undefined>((rs, rj)=>{
+              if (cache != undefined) return rs(cache)
+              let sub = c.subscriptionBuilder()
+              .onApplied(c=>{
+                let r= c.db.storage.owner_key.find(owner_key)
+                if (!r) return rs(undefined)
+                cache = JSON.parse(r.value) as JsonData
+                rs(cache)
+                sub.unsubscribe()
+              })
+              .onError(e=>{
+                console.error("DB subscription error", e)
+                sub.unsubscribe()
+                rj(e)
+              })
+              .subscribe(`select * from storage where owner_key = '${owner_key}'`)
+            }),
+            set: (data:JsonData) =>
+              c.procedures.setitem({owner, passhash: pwd(), key: schema_key, value: JSON.stringify(data)})
+              .then(r=>{
+                if (r.tag == "Success"){
+                  cache = data
+                }else{
+                  throw new Error("Failed to set item in DB: " + JSON.stringify(r))
+                }
+              })
+          
+          };
+          hot_cache.set(owner_key, mkStored<T>(base, schema) as any as Stored<JsonData>)
+        }
+        return hot_cache.get(owner_key) as any as Stored<T>
       }
     }
     console.log("signin")

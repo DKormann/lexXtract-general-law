@@ -1,4 +1,5 @@
-import type { JsonData, Schema } from "./struct"
+import type { Stored } from "./db"
+import type { JsonData, Schema, Taxonomy } from "./struct"
 
 export type Prompt = string
 
@@ -11,20 +12,13 @@ export type Document = {
 }
 
 
-export type Taxonomy = {
-  name:string,
-  description:string,
-  constraint?: string,
-  style?: string,
-  children: Taxonomy[]
-  itemSchema?: Schema
-}
 
 export type Module = {
-  prompt: Prompt
-  taxonomy: Taxonomy
-  source: {[title:string]:Document}
-  extraction? : JsonData
+  db: <T extends JsonData>(key:string, schema:Schema)=>Stored<T>,
+  taxonomy: Stored<Taxonomy>
+  documents: Stored<{[key:string]: string}>,
+  extraction: Stored<JsonData>,
+  prompt: Stored<string>,
 }
 
 

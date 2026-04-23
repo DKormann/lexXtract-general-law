@@ -105,14 +105,14 @@ export const Schema = {
   object: (properties:{[key:string]:Schema}, required?:string[], additionalProperties?:Schema) =>({type:"object", properties, required, additionalProperties} as Schema),
   record: (valueSchema:Schema)=>({type:"object", additionalProperties:valueSchema} as Schema),
   array: (items:Schema)=>({type:"array", items} as Schema),
-  anyOf: (anyOf:Schema[])=>({type:undefined, anyOf} as Schema),
+  anyOf: (...anyOf:Schema[])=>({type:undefined, anyOf} as Schema),
   const: (value:JsonData)=>({type:undefined, const:value} as Schema),
   ref: ($ref:string)=>({type:undefined, $ref } as Schema),
   any: {} as Schema
 }
 
 export const SchemaSchema : Schema = {
-  Schema: Schema.anyOf([
+  Schema: Schema.anyOf(
     Schema.object({
       type: Schema.const("string")
     }, ['type']),
@@ -134,7 +134,7 @@ export const SchemaSchema : Schema = {
     Schema.object({
       const: Schema.any
     }, ['const'])
-  ]),
+  ),
   "$ref" : "#/Schema"
 }
 
@@ -148,12 +148,31 @@ export const TaxonomySchema:Schema = Schema.object({
   }, ['description']))
 }, ['categories'])
 
+export type Taxonomy = {
+  categories: {
+    [name:string]: {
+      description: string,
+      subCategories: {
+        [name:string]: {
+          description: string,
+          itemSchema: Schema
+        }
+      }
+    }
+  }
+}
+
+
+const objectMap = <T, U>(obj: {[key:string]: T}, fn: (t:T, k:string)=>U): {[key:string]: U}=> Object.fromEntries(Object.entries(obj).map(([k,v])=>[k, fn(v, k)]))
+
+export const Taxonomy2Schema = (t:Taxonomy):Schema=>Schema.object(objectMap(t.categories, cat=> Schema.object(objectMap(cat.subCategories, subcat=>Schema.record(subcat.itemSchema)))))
 
 
 export const parse = (s:string)=>JSON.parse(s)
 export const stringify = (d:JsonData)=>JSON.stringify(d, null, 2)
 
 export const schemaType = (s:Schema):string=>{
+
   if (s.type) {
     if (s.type == "array") return schemaType(s.items) + "[]"
     if (s.type == "object") {
@@ -165,7 +184,7 @@ export const schemaType = (s:Schema):string=>{
   }
 
   if ("$ref" in s) return `ref(${s["$ref"]})`
-  if ("anyOf" in s) return (s.anyOf as Schema[]).map(schemaType).join(" | ")
+  if ("anyOf" in s) return "(" + (s.anyOf as Schema[]).map(schemaType).join(" | ") + ")"
   if ("const" in s) return stringify(s.const)
   return "any"
 }
