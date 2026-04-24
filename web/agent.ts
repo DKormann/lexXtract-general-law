@@ -54,11 +54,17 @@ let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{
 }
 
 
+export let cost_tracker = LocalStored<{total:string}>("cost_tracker", Schema.object({total: Schema.string}))
+
+
+
+
 export const mkAgent = async (module:Module)=>{
 
   let models = LocalStored<string[]>("models", Schema.array(Schema.string), [
     "openai/gpt-oss-120b",
     "anthropic/claude-opus-4.5",
+    "moonshotai/kimi-k2.5",
   ])
 
 
@@ -169,6 +175,9 @@ export const mkAgent = async (module:Module)=>{
     }
   }
 
+  // let cost_tracker = module.db<{total:number}>("cost_tracker", Schema.object({total: Schema.number}), {total:0})
+
+
 
   let runagent = (nm:ModelMessage[])=>{
     intake.value = ""
@@ -179,9 +188,12 @@ export const mkAgent = async (module:Module)=>{
       .then(async r=>{
         hint.remove()
         console.log("Model response", r)
-        await agent_msgs.update(ms=>[...ms, ...r])
         
-        let proms = r.map(msg=>{
+        await agent_msgs.update(ms=>[...ms, ...r.messages])
+
+        cost_tracker.set({total: String(Number(cost_tracker.get()!.total || "0") + r.cost)})
+        
+        let proms = r.messages.map(msg=>{
           if ("type" in msg && msg.type == "function_call"){
             return runtool(msg.name, msg.arguments).then(out=>
               agent_msgs.update(ms=>ms.map(mm=>{

@@ -10,18 +10,11 @@ import { fillSchema, TaxonomySchema, type Taxonomy} from "../src/struct";
 import type { Module } from "../src/types";
 import { background, body, border, button, color, div, errorpopup, h2, h3, height, input, margin, p, padding, popup, pre, span, style, table, td, textarea, tr, type HTMLArg } from "./html";
 import { viewer } from "./viewer";
-import { mkAgent } from "./agent";
+import { cost_tracker, mkAgent } from "./agent";
 
 
 let locstring = location.href.split("?")[0] || ""
 
-
-type Model = string
-
-const models = LocalStored<Model[]>("models", Schema.array(Schema.string), [
-  "openai/gpt-oss-120b",
-  "anthropic/claude-opus-4.5",
-])
 
 
 export type ModPath = {
@@ -170,8 +163,9 @@ let loadUser = ()=>{
                 pwd.value = ''
               })
             }}))
-          )
-        )
+          ),
+        ),
+        p("usage:", cost_tracker.get().total)
       ))
     }
     mksettings()

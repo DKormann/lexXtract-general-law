@@ -39,7 +39,7 @@ function getApiKey(): string {
 }
 
 
-export const chat = async (input: ModelMessage[], model: string, tools:ModelTool[]): Promise<ModelMessage[]> =>{
+export const chat = async (input: ModelMessage[], model: string, tools:ModelTool[]): Promise<{messages:ModelMessage[], cost:number}> =>{
 
   let body = stringify({model, input, tools}) 
   console.log("Sending request to model with body", body)
@@ -68,27 +68,18 @@ export const chat = async (input: ModelMessage[], model: string, tools:ModelTool
 
   console.log("Model response", data)
 
-  return data.output.map(items=>{
-    let ret : ModelMessage | ModelMessage[] = 
-      items.type == "message" ? {role: "assistant", content: items.content.map(c=>c.text).join("\n")} :
-      items.type == "function_call" ? [
-        {type: "function_call", id: items.id, call_id: items.call_id, name: items.name, arguments: items.arguments},
-        {type: "function_call_output", call_id: items.call_id, output: ""}
-      ] :[]
-    
-    return ret
-  }).flat()
-
+  return {
+    messages: data.output.map(items=>{
+      let ret : ModelMessage | ModelMessage[] = 
+        items.type == "message" ? {role: "assistant", content: items.content.map(c=>c.text).join("\n")} :
+        items.type == "function_call" ? [
+          {type: "function_call", id: items.id, call_id: items.call_id, name: items.name, arguments: items.arguments},
+          {type: "function_call_output", call_id: items.call_id, output: ""}
+        ] :[]
+      
+      return ret
+    }).flat(),
+    cost: data.usage.cost
+  }
 }
-
-
-// {
-
-//   let test = await chat(
-//     [{role: "user", content: "What is 2 + 2?"}],
-//     "openai/gpt-oss-120b",
-//     []
-//   )
-//   console.log(test)
-// }
 
