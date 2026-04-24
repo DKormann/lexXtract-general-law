@@ -1,25 +1,41 @@
 import { LocalStored } from "../src/helpers";
-import { chat, type Tool } from "../src/request";
-import { Schema, type JsonData } from "../src/struct";
+import { chat, type ModelMessage, type ModelTool } from "../src/request";
+import { Schema, schemaType, stringify, validate, type JsonData } from "../src/struct";
 import type { Module } from "../src/types";
+import { mkRunner } from "./agent_functions";
 import { button, color, div, errorpopup, h2, input, p, popup, pre, style } from "./html";
+import { jsonView, viewer } from "./viewer";
+
+
+type Tool = ModelTool & {runner: (args:JsonData)=>Promise<JsonData>}
 
 
 
-export type Message = {
-  role: "assistant" | "user" | "system",
-  content: string
-  toolcall?: {tool: string, args: JsonData}
-}
+type Message = {role: "user" | "assistant" | "system", content: string}
+| {type: "function_call", id: string, call_id: string, name:string, arguments: string}
+| {type: "function_call_output", call_id: string, output: string}
 
-export const Message = Schema.object({
-  role: Schema.anyOf(Schema.const("assistant"), Schema.const("user"), Schema.const("system")),
-  content: Schema.string,
-  toolcall: Schema.object({
-    tool: Schema.string,
-    args: Schema.any
-  }, ['tool', 'args'])
-}, ["role", "content"])
+export const Message = Schema.from([
+  {
+    role: ["system", "user", "assistant"],
+    content: Schema.string
+  },
+  {
+    _type: "function_call",
+    id: String,
+    call_id: String,
+    name: String,
+    arguments: String
+  },
+  {
+    _type: "function_call_output",
+    call_id: String,
+    output: String
+  }
+])
+
+console.log(stringify(Message))
+
 
 let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{
   return button(
@@ -48,7 +64,7 @@ export const mkAgent = async (module:Module)=>{
 
   let model = module.db<string>("current_model", Schema.string)
 
-  let agent_msgs = module.db<Message[]>("agent_msgs", Schema.array(Message))
+  let agent_msgs = module.db<ModelMessage[]>("agent_msgs", Schema.array(Message))
   let model_picker = div(style({
     position:"fixed",
     background: color.background,
@@ -96,23 +112,29 @@ export const mkAgent = async (module:Module)=>{
 
   let show_msgs = ()=>{
     agent_msgs.get().then(m=>{
-      msgs_view.replaceChildren(...(m as Message[]).map(msg=>
-
-        pre(
+      console.log("Updating messages view with", m)
+      msgs_view.replaceChildren(...(m).map((msg:ModelMessage)=>{
+        let role = "role" in msg ? msg.role : msg.type;
+        let content = "content" in msg ? msg.content : "name" in msg ? `[function call: ${msg.name}]` : `[function output: ${msg.output}]`
+        return pre(
+          {onclick:()=>{
+            let pop = popup(
+              h2("message content"),
+              jsonView(msg)
+            )
+          }},
           style({
             width:"fit-content",
-            fontWeight: msg.role == "user" ? "bold" : "normal",
-            fontStyle: msg.role == "system" ? "italic" : "none",
+            fontWeight: role == "user" ? "bold" : "normal",
+            fontStyle: role == "system" ? "italic" : "none",
             padding: ".2em",
             margin: "0",
-            paddingLeft: msg.role == "user" ? "0" : "1em",
+            paddingLeft: role == "user" ? "0" : "1em",
             textWrap: "wrap",
           }),
-          msg.content,
-          msg.toolcall ? "TOOLCALL: " +  msg.toolcall.tool + ": " + JSON.stringify(msg.toolcall.args) : [],
-          // JSON.stringify(msg)
-          
+          content,
         )
+      }
       ))
     })
   }
@@ -120,16 +142,65 @@ export const mkAgent = async (module:Module)=>{
   show_msgs()
   agent_msgs.onupdate(show_msgs)
 
-
   let possibleTools:Tool[] = await module.functions.get().then(fs=>Object.entries(fs).map(([name,v])=>{
-    let tool:Tool = {
+    let tool:Tool = 
+    {
+      type: "function",
       name,
       description: v.description || "",
-      parameters: Schema.object(v.parameters)
-    } 
+      parameters: Schema.object(v.parameters),
+      runner: mkRunner(module, v) as (args:JsonData)=>Promise<JsonData>
+    }
     return tool
   }))
-  
+
+  let runtool = async (name:string, args: string): Promise<JsonData>=>{
+    console.log("Running tool", name, "with args", args)
+    let tool = possibleTools.find(t=>t.name == name)
+    if (!tool) return {error: "tool not found: "+name}
+    try{
+      let parsedArgs = JSON.parse(args)
+      let res=await tool.runner(parsedArgs)
+      console.log("Tool output", res)
+      return res
+    }catch(e){
+      console.error("Error running tool", e)
+      return {error: String(e)}
+    }
+  }
+
+
+  let runagent = (nm:ModelMessage[])=>{
+    intake.value = ""
+    model.get().then(mod=>{
+      let hint = pre("...")
+      msgs_view.append(hint)
+      chat(nm, mod, possibleTools)
+      .then(async r=>{
+        hint.remove()
+        console.log("Model response", r)
+        await agent_msgs.update(ms=>[...ms, ...r])
+        
+        let proms = r.map(msg=>{
+          if ("type" in msg && msg.type == "function_call"){
+            return runtool(msg.name, msg.arguments).then(out=>
+              agent_msgs.update(ms=>ms.map(mm=>{
+                console.log("Checking message for update", stringify(mm))
+                if ("type" in mm && mm. type == "function_call_output" && mm.call_id == msg.call_id){
+                  return {...mm, output: JSON.stringify(out)}
+                }
+                return mm
+              }))
+            )
+          }
+        })
+        await Promise.all(proms)
+        if (proms.some(p=>p!=undefined)) agent_msgs.get().then(runagent)
+        
+      })
+    })
+  }
+
 
   let intake = input({placeholder:"message",
     style:{
@@ -146,23 +217,8 @@ export const mkAgent = async (module:Module)=>{
     onkeydown: e=>{
       if (e.key == "Enter"){
         agent_msgs.get().then(m=>{
-          let nm:Message[] = [...m, {role:"user", content: intake.value}]
-          agent_msgs.set(nm)
-          .then(()=>{
-            intake.value = ""
-            model.get().then(mod=>{
-              let hint = pre("...")
-              msgs_view.append(hint)
-              chat(nm, mod, possibleTools
-              ).then(res=>{
-                hint.remove()
-                agent_msgs.set([...nm, ...res])
-              }).catch(e=>{
-                hint.remove()
-                errorpopup(e)
-              })
-            })
-          })
+          let nm = m.concat({role:"user", content: intake.value})
+          agent_msgs.set(nm).then(()=>runagent(nm))
         })
       }
     }

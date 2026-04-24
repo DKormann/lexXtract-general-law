@@ -4,7 +4,7 @@ import { db  } from "../src/app";
 import { randUser, type Stored } from "../src/db";
 import { hash } from "../src/hash";
 import { LocalStored } from "../src/helpers";
-import { chat, localApiKey, type Message, request } from "../src/request";
+import { chat, localApiKey } from "../src/request";
 import { Schema, SchemaSchema, Taxonomy2Schema, type JsonData } from "../src/struct";
 import { fillSchema, TaxonomySchema, type Taxonomy} from "../src/struct";
 import type { Module } from "../src/types";

@@ -1,7 +1,4 @@
 
-import { hash } from "./hash"
-import { LocalStored, storage } from "./helpers"
-
 export type Schema =
 { [key:string]: JsonData} & 
 ({
@@ -44,6 +41,26 @@ let resolve = (ref:string, root:Schema):Schema=>{
   return current as Schema
 }
 
+
+
+export const schemaType = (s:Schema):string=>{
+
+  if (s.type) {
+    if (s.type == "array") return schemaType(s.items) + "[]"
+    if (s.type == "object") {
+      let props = s.properties ? Object.entries(s.properties).map(([k,v])=> `${k}${s.required?.includes(k) ? "" : "?"}: ${schemaType(v)}`) : []
+      if (s.additionalProperties) props.push(`[key:string]: ${schemaType(s.additionalProperties)}`)
+      return `{\n  ${props.join(",\n").replaceAll("\n", "\n  ")}\n}`
+    }
+    if (s.type == "string") return "string"
+  }
+
+  if ("$ref" in s) return `ref(${s["$ref"]})`
+  if ("anyOf" in s) return "(" + (s.anyOf as Schema[]).map(schemaType).join(" | ") + ")"
+  if ("const" in s) return stringify(s.const)
+  return "any"
+}
+
 export const validate = (schema:Schema, object: any)=>{
 
   let deref = (s:Schema):Schema=>{
@@ -54,15 +71,17 @@ export const validate = (schema:Schema, object: any)=>{
     return s
   }
 
-  let go = (s:Schema, object:any)=>{
+  let go = (s:Schema, object:any, path:string[])=>{
+    let raise = (msg:string)=>{throw new Error(`Validation error at ${path.join("/")} : ${msg}\nSchema: ${schemaType(s)}\n\nObject: ${stringify(object)}`)}
+    let assert = (condition:boolean, msg?:string)=>{if (!condition) raise(msg || "Assertion failed")}
     if (object == undefined) raise("undefined value")
     s = deref(s)
     if (s.type == undefined){
       if ("anyOf" in s){
         let ok = false;
-        (s.anyOf as Schema[]).forEach(p=>{
+        (s.anyOf as Schema[]).forEach((p, i)=>{
           try{
-            go(p, object)
+            go(p, object, [...path, `anyOf[${i}]`])
             ok = true
           }catch(e){}
         })
@@ -73,23 +92,24 @@ export const validate = (schema:Schema, object: any)=>{
     } else if (typeof object == "string") {assert (s.type == "string")
     } else if (object instanceof Array){
       if (s.type != "array") return raise("unexpected array")
-      object.forEach(x=>go(s.items, x))
+      object.forEach((x, i)=>go(s.items, x, [...path, String(i)]))
     } else if (typeof object == "object" && object != null){
       if (s.type != "object") return raise("not expected object but:" +s.type)
       Object.entries(object).forEach(([k,v])=>{
         let props = s.properties ?? {}
-        if (k in props) go(props[k]!, v)
-        else go(s.additionalProperties ?? raise("unexpected property "+k), v)
+        if (k in props) go(props[k]!, v, [...path, k])
+        else go(s.additionalProperties ?? raise("unexpected property "+k), v, [...path, k])
       })
       if (s.required) s.required.forEach(s=>assert(s in object))
     } else raise ("unexpeced type: "+typeof object)
   }
 
-  go(schema, object)
+
+
+  go(schema, object, ["#"])
 }
 
 export const fillSchema = (schema:Schema):JsonData=>{
-  console.log("Filling schema", schema)
   if (schema.type == "string") return ""
   if (schema.type == "array") return []
   if (schema.type == "object"){
@@ -107,6 +127,30 @@ export type JsonData = string | {[ key: string ]: JsonData} | JsonData[]
 
 
 export const Schema = {
+  from: (s:any):Schema=>{
+    if (s == String) return Schema.string 
+    if (typeof s == "string") return Schema.const(s)
+    if (s instanceof Array){
+      if (s.length == 1) return Schema.array(Schema.from(s[0]!))
+      if (s.length > 1) return Schema.anyOf(...s.map(x=>Schema.from(x)))
+    }
+    if (typeof s == "object" && s != null){
+      if ("type" in s || "anyOf" in s || "const" in s || "$ref" in s) return s as Schema
+      let props:{[key:string]:Schema} = {}
+      let required:string[] = []
+      Object.entries(s).forEach(([k,v])=>{
+        if (k.startsWith("_")) k = k.slice(1)
+        if (k.endsWith("?")){
+          props[k.slice(0,-1)] = Schema.from(v)
+        }else{
+          props[k] = Schema.from(v)
+          required.push(k)
+        }
+      })
+      return Schema.object(props, required)
+    }
+    throw new Error("Invalid schema data: " + JSON.stringify(s))
+  },
   string: {type:"string"} as Schema,
   object: (properties:{[key:string]:Schema}, required?:string[], additionalProperties?:Schema) =>({type:"object", properties, required, additionalProperties} as Schema),
   record: (valueSchema:Schema)=>({type:"object", additionalProperties:valueSchema} as Schema),
@@ -177,23 +221,6 @@ export const Taxonomy2Schema = (t:Taxonomy):Schema=>Schema.object(objectMap(t.ca
 export const parse = (s:string)=>JSON.parse(s)
 export const stringify = (d:JsonData)=>JSON.stringify(d, null, 2)
 
-export const schemaType = (s:Schema):string=>{
-
-  if (s.type) {
-    if (s.type == "array") return schemaType(s.items) + "[]"
-    if (s.type == "object") {
-      let props = s.properties ? Object.entries(s.properties).map(([k,v])=> `${k}${s.required?.includes(k) ? "" : "?"}: ${schemaType(v)}`) : []
-      if (s.additionalProperties) props.push(`[key:string]: ${schemaType(s.additionalProperties)}`)
-      return `{\n  ${props.join(",\n").replaceAll("\n", "\n  ")}\n}`
-    }
-    if (s.type == "string") return "string"
-  }
-
-  if ("$ref" in s) return `ref(${s["$ref"]})`
-  if ("anyOf" in s) return "(" + (s.anyOf as Schema[]).map(schemaType).join(" | ") + ")"
-  if ("const" in s) return stringify(s.const)
-  return "any"
-}
 
 
 
