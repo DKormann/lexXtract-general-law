@@ -180,18 +180,3 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
   })
   .build()
 })
-
-
-let test = async ()=>{
-  let db = await RemoteDB()
-  let test_schema:Schema = {
-    type: "object",
-    properties: {
-      name: {type: "string"},
-    },
-  }
-  let item = db.get("test_item", test_schema)
-  item.set({name: "Alice"})
-  let data = await item.get()
-  console.log("Got data", data)
-}

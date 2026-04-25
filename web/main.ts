@@ -12,10 +12,7 @@ import { background, body, border, button, color, div, errorpopup, h2, h3, heigh
 import { viewer } from "./viewer";
 import { cost_tracker, mkAgent } from "./agent";
 
-
 let locstring = location.href.split("?")[0] || ""
-
-
 
 export type ModPath = {
   owner: string,
@@ -58,8 +55,6 @@ let loadUser = ()=>{
   let current_module = db.get<ModPath>("current_module", ModPath)
 
   if (urlrequest) current_module.set(urlrequest)
-
-
   
   const show_module = async (mod:ModPath) => {
 
@@ -90,7 +85,7 @@ let loadUser = ()=>{
     taxonomy.onupdate(()=>{
       show_module(mod)
     })
-    const extraction = mod_db<JsonData>("extraction", await taxonomy.get().then(t=>Taxonomy2Schema(t)))
+    const extraction = mod_db<JsonData>("extraction", await taxonomy.get().then(Taxonomy2Schema))
 
     let module: Module = {
       db: mod_db,

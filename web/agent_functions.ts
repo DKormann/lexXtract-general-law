@@ -60,50 +60,53 @@ export const mkFunctions = async (module:Module)=>{
         paddingLeft: "1em",
       }))
       return div(
-        h3(k, button("call", {
-          onclick:()=>{
+        h3(k,
+          button("call", {
+            onclick:()=>{
 
-            let argsSchema = Schema.object(v.parameters, Object.keys(v.parameters))
-            let args = fillSchema(argsSchema) as {[par:string]: JsonData}
-            
-            let pop = popup(
-              h2("call "+ k),
-              v.description? p(v.description) : [],
-              h3("arguments"),
-              viewer({
-                get: async ()=>args,
-                set: async (a:{[par:string]:JsonData})=>{args = a},
-                schema: argsSchema
-              }),
-              button("execute", {
-                onclick:async ()=>{
-                  
-                  try{
-                    let res = await mkRunner(module, v)(args)
-                    pop.remove()
-                    if (res !== undefined) popup(
-                      h2("result"),
-                      jsonView(res)
-                    )
-                  }catch(e){
-                    errorpopup(e as Error)
+              let argsSchema = Schema.object(v.parameters, Object.keys(v.parameters))
+              let args = fillSchema(argsSchema) as {[par:string]: JsonData}
+              
+              let pop = popup(
+                h2("call "+ k),
+                v.description? p(v.description) : [],
+                h3("arguments"),
+                viewer({
+                  get: async ()=>args,
+                  set: async (a:{[par:string]:JsonData})=>{args = a},
+                  schema: argsSchema
+                }),
+                button("execute", {
+                  onclick:async ()=>{
+                    
+                    try{
+                      let res = await mkRunner(module, v)(args)
+                      pop.remove()
+                      if (res !== undefined) popup(
+                        h2("result"),
+                        jsonView(res)
+                      )
+                    }catch(e){
+                      errorpopup(e as Error)
+                    }
                   }
-                }
-              })
-            )
-          }
-        })),
-        p(v.description || "", button("details", {onclick:()=>{
-          if (details.childElementCount == 0){
-            details.append(viewer({
-              get: async ()=>v,
-              set: async (a:FunctionDef)=>functions.update(fs=>({...fs, [k]: a})),
-              schema: FunctionSchema
-            }))
-          }else{
-            details.replaceChildren()
-          }
-        }})),
+                })
+              )
+            }
+          }),
+          button("details", {onclick:()=>{
+            if (details.childElementCount == 0){
+              details.append(viewer({
+                get: async ()=>v,
+                set: async (a:FunctionDef)=>functions.update(fs=>({...fs, [k]: a})),
+                schema: FunctionSchema
+              }))
+            }else{
+              details.replaceChildren()
+            }
+          }})
+        ),
+        p(v.description || ""),
         details,
       )
     }

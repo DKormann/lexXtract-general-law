@@ -1,6 +1,6 @@
 import { db } from "../src/app";
 import type { Stored } from "../src/db";
-import { Schema, schemaType, stringify, validate, type JsonData } from "../src/struct";
+import { Schema, schemaType, validate, type JsonData } from "../src/struct";
 import { button, color, div, errorpopup, p, padding, popup, pre, span, style, textarea } from "./html";
 import type { ModPath } from "./main";
 
@@ -83,14 +83,6 @@ export const viewer = <T extends JsonData>(
       }
     }
   }
-
-  // data.onupdate(()=>{
-  //   data.get().then(d=>{
-  //     dat = d
-  //     if (editmode) setedit(true)
-  //     else bod.replaceChildren(viewer(dat))
-  //   })
-  // })
 
   data.get().then(d=>{
     dat = d

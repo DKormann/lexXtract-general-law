@@ -11,7 +11,7 @@ export type Schema =
   type?: undefined,
   const: JsonData
 } | {
-  type: "string"
+  type: "string" | "number" | "boolean" | "null"
 } | {
   type: "array",
   items: Schema
@@ -24,12 +24,6 @@ export type Schema =
   type?: undefined
 })
 
-
-const assert = (condition:boolean, message?:string)=>{if (!condition)throw new Error("Assertion failed" + message?(":"+message) :"")}
-
-const raise = (msg:string) => {throw new Error(msg)}
-
-
 let resolve = (ref:string, root:Schema):Schema=>{
   if (!ref.startsWith("#/")) throw new Error("Only local references supported")
   let parts = ref.split("/").slice(1)
@@ -40,8 +34,6 @@ let resolve = (ref:string, root:Schema):Schema=>{
   }
   return current as Schema
 }
-
-
 
 export const schemaType = (s:Schema):string=>{
 
@@ -104,8 +96,6 @@ export const validate = (schema:Schema, object: any)=>{
     } else raise ("unexpeced type: "+typeof object)
   }
 
-
-
   go(schema, object, ["#"])
 }
 
@@ -123,7 +113,7 @@ export const fillSchema = (schema:Schema):JsonData=>{
 
 }
 
-export type JsonData = string | {[ key: string ]: JsonData} | JsonData[]
+export type JsonData = string | null | number | boolean | {[ key: string ]: JsonData} | JsonData[]
 
 
 export const Schema = {
@@ -212,17 +202,8 @@ export type Taxonomy = {
   }
 }
 
-
 const objectMap = <T, U>(obj: {[key:string]: T}, fn: (t:T, k:string)=>U): {[key:string]: U}=> Object.fromEntries(Object.entries(obj).map(([k,v])=>[k, fn(v, k)]))
-
 export const Taxonomy2Schema = (t:Taxonomy):Schema=>Schema.object(objectMap(t.categories, cat=> Schema.object(objectMap(cat.subCategories, subcat=>Schema.record(subcat.itemSchema)))))
-
 
 export const parse = (s:string)=>JSON.parse(s)
 export const stringify = (d:JsonData)=>JSON.stringify(d, null, 2)
-
-
-
-
-
-console.log(TaxonomySchema)
