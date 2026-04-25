@@ -1,6 +1,6 @@
 import { errorpopup } from "../web/html";
 import { LocalStored } from "./helpers";
-import { parse, Schema, stringify, type JsonData } from "./struct";
+import { parse, stringify, type JsonData, type JSONSchema } from "./struct";
 
 
 type ModelResponse = {
@@ -16,7 +16,7 @@ export type ModelTool =
   type: "function",
   name: string;
   description: string;
-  parameters: Schema;
+  parameters: JSONSchema;
 }
 
 
@@ -26,7 +26,7 @@ export type ModelMessage = {role: "user" | "assistant" | "system", content: stri
 
 
 
-export const localApiKey = LocalStored<string>("openrouter_api_key", Schema.string, "")
+export const localApiKey = LocalStored<string>("openrouter_api_key", String, "")
 
 function getApiKey(): string {
   let key = localApiKey.get()
@@ -82,4 +82,3 @@ export const chat = async (input: ModelMessage[], model: string, tools:ModelTool
     cost: data.usage.cost
   }
 }
-

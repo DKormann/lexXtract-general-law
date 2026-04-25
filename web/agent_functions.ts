@@ -1,12 +1,13 @@
 import { button, div, errorpopup, h2, h3, p, popup, pre, style } from "./html";
 import { jsonView, viewer } from "./viewer";
 import type { Stored } from "../src/db";
-import { fillSchema, Schema, SchemaSchema, type JsonData } from "../src/struct";
+import type { JsonData, JSONSchema } from "../src/struct";
 import type { Module } from "../src/types";
+import { fill, fromSchema, SchemaPattern, validateSchema, type Pattern } from "./pattern";
 
 
 export type FunctionDef = {
-  parameters: Record<string, Schema>,
+  parameters: Record<string, JSONSchema>,
   description?: string,
   reads?: string[],
   writes?: string[],
@@ -14,21 +15,20 @@ export type FunctionDef = {
 }
 
 
-const CapabilitiesSchema = Schema.anyOf(
-  ...["taxonomy", "documents", "prompt", "functions"].map(Schema.const),
-)
+const CapabilityPattern: Pattern = ["taxonomy", "documents", "prompt", "functions"]
 
-export const FunctionSchema = Schema.object({
-  description: Schema.string,
-  reads: Schema.array(CapabilitiesSchema),
-  writes: Schema.array(CapabilitiesSchema),
-  parameters: Schema.record(Schema.any),
-  code: Schema.string
-}, ["parameters", "code"])
+export const FunctionDefPattern: Pattern = {
+  "description?": String,
+  "reads?": [CapabilityPattern],
+  "writes?": [CapabilityPattern],
+  parameters: {"[key:string]": SchemaPattern},
+  code: String
+}
 
 export const mkRunner = (module:Module, v: FunctionDef): (args:{[key:string]:JsonData})=>Promise<JsonData> =>{
 
   return  async (args:{[key:string]:JsonData})=>{
+    validateSchema({type: "object", properties: v.parameters, required: Object.keys(v.parameters)}, args)
     let reads = v.reads || []
     let writes = v.writes || []
 
@@ -51,7 +51,7 @@ export const mkRunner = (module:Module, v: FunctionDef): (args:{[key:string]:Jso
 
 export const mkFunctions = async (module:Module)=>{
 
-  const functions = module.db<{[key:string]: FunctionDef}>("functions", Schema.record(FunctionSchema))
+  const functions = module.db<{[key:string]: FunctionDef}>("functions", {"[key:string]": FunctionDefPattern})
 
   const view = viewer(functions, d=>{
     return div(Object.entries(d as {[key:string]: FunctionDef}).map(([k,v])=>
@@ -64,8 +64,8 @@ export const mkFunctions = async (module:Module)=>{
           button("call", {
             onclick:()=>{
 
-              let argsSchema = Schema.object(v.parameters, Object.keys(v.parameters))
-              let args = fillSchema(argsSchema) as {[par:string]: JsonData}
+              let argsSchema = {type: "object", properties: v.parameters, required: Object.keys(v.parameters)} as JSONSchema
+              let args = fill(fromSchema(argsSchema)) as {[par:string]: JsonData}
               
               let pop = popup(
                 h2("call "+ k),
@@ -74,7 +74,7 @@ export const mkFunctions = async (module:Module)=>{
                 viewer({
                   get: async ()=>args,
                   set: async (a:{[par:string]:JsonData})=>{args = a},
-                  schema: argsSchema
+                  pattern: fromSchema(argsSchema)
                 }),
                 button("execute", {
                   onclick:async ()=>{
@@ -99,7 +99,7 @@ export const mkFunctions = async (module:Module)=>{
               details.append(viewer({
                 get: async ()=>v,
                 set: async (a:FunctionDef)=>functions.update(fs=>({...fs, [k]: a})),
-                schema: FunctionSchema
+                pattern: FunctionDefPattern
               }))
             }else{
               details.replaceChildren()

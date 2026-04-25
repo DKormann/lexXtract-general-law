@@ -1,8 +1,9 @@
 import { db } from "../src/app";
 import type { Stored } from "../src/db";
-import { Schema, schemaType, validate, type JsonData } from "../src/struct";
+import type { JsonData } from "../src/struct";
 import { button, color, div, errorpopup, p, padding, popup, pre, span, style, textarea } from "./html";
 import type { ModPath } from "./main";
+import { format, validate, type Pattern } from "./pattern";
 
 export const jsonView = (d:JsonData):HTMLElement =>{
 
@@ -23,7 +24,7 @@ export const viewer = <T extends JsonData>(
   data: {
     get: ()=>Promise<T>,
     set: (t:T)=>Promise<void>,
-    schema: Schema
+    pattern: Pattern
   },
   viewer:(d:JsonData)=>HTMLElement = jsonView) => {
 
@@ -40,13 +41,13 @@ export const viewer = <T extends JsonData>(
 
   let dat:JsonData = ""
   let editstatus = p()
-  let schemaview = pre(style({ color:color.gray}), `expected type:\n${schemaType(data.schema)}`)
+  let patternview = pre(style({ color:color.gray}), `expected type:\n${format(data.pattern)}`)
 
   let editor = pre({contentEditable:true,
     oninput:()=>{
       try{
         let d = JSON.parse(editor.textContent)
-        validate(data.schema, d)
+        validate(data.pattern, d)
         editstatus.textContent = "ok"
         editstatus.replaceChildren(span(style({color:color.green}), "ok"))
       }catch(e){
@@ -64,7 +65,7 @@ export const viewer = <T extends JsonData>(
     editmode = val
     if (editmode){
       editor.textContent = JSON.stringify(dat, null, 2)
-      bod.replaceChildren(cancel, editor, editstatus, schemaview)
+      bod.replaceChildren(cancel, editor, editstatus, patternview)
       editor.focus()
       but.textContent = "save"
     }else{

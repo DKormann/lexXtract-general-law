@@ -1,6 +1,6 @@
 import { assert, assertEqualJSON, expectError, runTests } from "./test";
-import { format, fromSchema, validate, type Pattern, type Schema } from "../web/pattern";
-import type { JsonData } from "../src/struct";
+import { format, fromSchema, validate, type Pattern } from "../web/pattern";
+import type { JSONSchema } from "../src/struct";
 
 runTests(
 
@@ -102,7 +102,7 @@ runTests(
       if (aStr !== bStr) throw new Error(`Assertion failed: expected \n${aStr}\nto equal \n${bStr}` + (msg?(": "+msg):""))
     }
 
-    let assertFromSchema = (schema: Schema, expected: Pattern, msg?: string)=>{
+    let assertFromSchema = (schema: JSONSchema, expected: Pattern, msg?: string)=>{
       let res = format(fromSchema(schema)).trim()
       let exp = format(expected).trim()
       if (res !== exp) throw new Error(`Assertion failed: expected \n${res}\nto equal \n${exp}` + (msg?(": "+msg):""))

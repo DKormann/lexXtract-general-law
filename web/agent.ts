@@ -1,10 +1,11 @@
 import { LocalStored } from "../src/helpers";
 import { chat, type ModelMessage, type ModelTool } from "../src/request";
-import { Schema, schemaType, stringify, validate, type JsonData } from "../src/struct";
+import { stringify, type JsonData } from "../src/struct";
 import type { Module } from "../src/types";
 import { mkRunner } from "./agent_functions";
 import { button, color, div, errorpopup, h2, input, p, popup, pre, style } from "./html";
 import { jsonView, viewer } from "./viewer";
+import { format, type Pattern } from "./pattern";
 
 
 type Tool = ModelTool & {runner: (args:JsonData)=>Promise<JsonData>}
@@ -15,10 +16,10 @@ type Message = {role: "user" | "assistant" | "system", content: string}
 | {type: "function_call", id: string, call_id: string, name:string, arguments: string}
 | {type: "function_call_output", call_id: string, output: string}
 
-export const Message = Schema.from([
+export const Message: Pattern = [
   {
     role: ["system", "user", "assistant"],
-    content: Schema.string
+    content: String
   },
   {
     _type: "function_call",
@@ -32,9 +33,9 @@ export const Message = Schema.from([
     call_id: String,
     output: String
   }
-])
+]
 
-console.log(stringify(Message))
+console.log(format(Message))
 
 
 let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{
@@ -54,23 +55,23 @@ let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{
 }
 
 
-export let cost_tracker = LocalStored<{total:string}>("cost_tracker", Schema.object({total: Schema.string}))
+export let cost_tracker = LocalStored<{total:string}>("cost_tracker", {total: String})
 
 
 
 
 export const mkAgent = async (module:Module)=>{
 
-  let models = LocalStored<string[]>("models", Schema.array(Schema.string), [
+  let models = LocalStored<string[]>("models", [String], [
     "openai/gpt-oss-120b",
     "anthropic/claude-opus-4.5",
     "moonshotai/kimi-k2.5",
   ])
 
 
-  let model = module.db<string>("current_model", Schema.string)
+  let model = module.db<string>("current_model", String)
 
-  let agent_msgs = module.db<ModelMessage[]>("agent_msgs", Schema.array(Message))
+  let agent_msgs = module.db<ModelMessage[]>("agent_msgs", [Message])
   let model_picker = div(style({
     position:"fixed",
     background: color.background,
@@ -154,7 +155,7 @@ export const mkAgent = async (module:Module)=>{
       type: "function",
       name,
       description: v.description || "",
-      parameters: Schema.object(v.parameters),
+      parameters: {type: "object", properties: v.parameters, required: Object.keys(v.parameters)},
       runner: mkRunner(module, v) as (args:JsonData)=>Promise<JsonData>
     }
     return tool
@@ -174,10 +175,6 @@ export const mkAgent = async (module:Module)=>{
       return {error: String(e)}
     }
   }
-
-  // let cost_tracker = module.db<{total:number}>("cost_tracker", Schema.object({total: Schema.number}), {total:0})
-
-
 
   let runagent = (nm:ModelMessage[])=>{
     intake.value = ""
@@ -245,4 +242,3 @@ export const mkAgent = async (module:Module)=>{
   return res;
 
 }
-

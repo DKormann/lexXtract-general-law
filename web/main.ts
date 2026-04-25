@@ -1,16 +1,15 @@
-
-import { FunctionSchema, mkFunctions } from "./agent_functions";
+import { FunctionDefPattern, mkFunctions } from "./agent_functions";
 import { db  } from "../src/app";
 import { randUser, type Stored } from "../src/db";
 import { hash } from "../src/hash";
 import { LocalStored } from "../src/helpers";
 import { chat, localApiKey } from "../src/request";
-import { Schema, SchemaSchema, Taxonomy2Schema, type JsonData } from "../src/struct";
-import { fillSchema, TaxonomySchema, type Taxonomy} from "../src/struct";
+import type { JsonData, Taxonomy } from "../src/struct";
 import type { Module } from "../src/types";
 import { background, body, border, button, color, div, errorpopup, h2, h3, height, input, margin, p, padding, popup, pre, span, style, table, td, textarea, tr, type HTMLArg } from "./html";
 import { viewer } from "./viewer";
 import { cost_tracker, mkAgent } from "./agent";
+import { fromSchema, SchemaPattern, type Pattern } from "./pattern";
 
 let locstring = location.href.split("?")[0] || ""
 
@@ -19,10 +18,30 @@ export type ModPath = {
   name: string
 }
 
-export const ModPath:Schema = Schema.object({
-  owner: Schema.string,
-  name: Schema.string,
-}, ["owner", "name"])
+export const ModPath:Pattern = {
+  owner: String,
+  name: String,
+}
+
+const objectMap = <T, U>(obj: {[key:string]: T}, fn: (t:T, k:string)=>U): {[key:string]: U} =>
+  Object.fromEntries(Object.entries(obj).map(([k,v])=>[k, fn(v, k)]))
+
+const TaxonomyPattern: Pattern = {
+  categories: {
+    "[key:string]": {
+      description: String,
+      subCategories: {
+        "[key:string]": {
+          description: String,
+          itemSchema: SchemaPattern
+        }
+      }
+    }
+  }
+}
+
+const taxonomyToPattern = (t: Taxonomy): Pattern =>
+  objectMap(t.categories, cat => objectMap(cat.subCategories, subcat => ({ "[key:string]": fromSchema(subcat.itemSchema) })))
 
 let urlrequest:ModPath | null = null
 
@@ -43,15 +62,15 @@ location.search.split("&").forEach(param=>{
 let accountsettings = {
   changePassword : db.changePassword,
   signup : (args:{userid:string, passhash:string})=>db.signup(args).then(loadUser),
-  getItem: (key:string, schema:Schema, owner?:string)=>{
+  getItem: (key:string, pattern:Pattern, owner?:string)=>{
     owner ||= db.userid
-    return db.get(key, schema, owner)
+    return db.get(key, pattern, owner)
   }
 }
 
 let loadUser = ()=>{
 
-  let module_list = db.get<ModPath[]>("modules", Schema.array(ModPath))
+  let module_list = db.get<ModPath[]>("modules", [ModPath])
   let current_module = db.get<ModPath>("current_module", ModPath)
 
   if (urlrequest) current_module.set(urlrequest)
@@ -63,15 +82,15 @@ let loadUser = ()=>{
     module_list.get().then(mods=>{if (!mods.map(x=>JSON.stringify(x)).includes(JSON.stringify(mod))) module_list.set([...mods, mod])})
     let modState: Stored<any>[] = []
 
-    let mod_db = <T extends JsonData> (key:string, schema:Schema) => {
-      let st = db.get<T>(mod.name+":"+key, schema, mod.owner)
+    let mod_db = <T extends JsonData> (key:string, pattern:Pattern) => {
+      let st = db.get<T>(mod.name+":"+key, pattern, mod.owner)
       if (mod.owner != db.userid) st.set = async (val:T)=>{
         let pop = popup(
           h2(`You cannot edit this module`),
           p(`it is owned by ${mod.owner}`),
           p('do you need to make a copy of this module to edit?'),
           button(`copy ${mod.name}`, {onclick: async ()=>{
-            await Promise.all(modState.map(s=>s.get().then(d=>db.get(s.key, s.schema, db.userid).set(d).then(()=>{console.log("copied", s.key, d)}))))
+            await Promise.all(modState.map(s=>s.get().then(d=>db.get(s.key, s.pattern, db.userid).set(d).then(()=>{console.log("copied", s.key, d)}))))
             await current_module.set({name:mod.name, owner: db.userid})
           }})
         )
@@ -80,20 +99,20 @@ let loadUser = ()=>{
       return st
     }
 
-    const taxonomy = mod_db<Taxonomy>("taxonomy", TaxonomySchema)
+    const taxonomy = mod_db<Taxonomy>("taxonomy", TaxonomyPattern)
 
     taxonomy.onupdate(()=>{
       show_module(mod)
     })
-    const extraction = mod_db<JsonData>("extraction", await taxonomy.get().then(Taxonomy2Schema))
+    const extraction = mod_db<JsonData>("extraction", await taxonomy.get().then(taxonomyToPattern))
 
     let module: Module = {
       db: mod_db,
-      functions: mod_db("functions", Schema.record(FunctionSchema)),
+      functions: mod_db("functions", {"[key:string]": FunctionDefPattern}),
       taxonomy,
       extraction,
-      documents: mod_db<{[key:string]: string}>("documents", Schema.record(Schema.string)),
-      prompt: mod_db<string>("prompt", Schema.string)
+      documents: mod_db<{[key:string]: string}>("documents", {"[key:string]": String}),
+      prompt: mod_db<string>("prompt", String)
     }
 
 
@@ -175,7 +194,7 @@ let loadUser = ()=>{
       Settings,
     }
   
-    let defaultSection = LocalStored<string>("default_section", Schema.string, "Agent")
+    let defaultSection = LocalStored<string>("default_section", String, "Agent")
   
     let content = div()
   
@@ -286,4 +305,3 @@ let loadUser = ()=>{
 }
 
 loadUser()
-

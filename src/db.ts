@@ -1,9 +1,10 @@
 // import spacetimedb from "../backend/spacetimedb/src"
 import { hash } from "./hash"
 import { LocalStored, storage } from "./helpers"
-import { fillSchema, Schema, validate, type JsonData } from "./struct"
+import type { JsonData } from "./struct"
 import { DbConnection } from "./module_bindings"
-import { errorpopup } from "../web/html"
+
+import { fill, format, validate, type Pattern } from "../web/pattern"
 
 
 export type BaseStored = {
@@ -14,7 +15,7 @@ export type BaseStored = {
 
 export type Stored <T extends JsonData> = {
   key:string,
-  schema: Schema,
+  pattern: Pattern,
   get: ()=>Promise<T>,
   set: (data:T)=>Promise<void>
   onupdate: (listener:()=>void)=>void
@@ -22,15 +23,15 @@ export type Stored <T extends JsonData> = {
   default: (t:T)=>Stored<T>
 }
 
-const mkStored = <T extends JsonData>(base: BaseStored, schema: Schema): Stored<T> => {
+const mkStored = <T extends JsonData>(base: BaseStored, pattern: Pattern): Stored<T> => {
   let listeners: (()=>void)[] = []
   let get = async ()=>{
     let res = await base.get() as T
-    if (res == undefined) return res = fillSchema(schema) as T
+    if (res == undefined) return res = fill(pattern) as T
     return res
   }
   let set = async (data:T)=>{
-    validate(schema, data)
+    validate(pattern, data)
     await base.set(data)
     listeners.forEach(l=>l())
   }
@@ -42,7 +43,7 @@ const mkStored = <T extends JsonData>(base: BaseStored, schema: Schema): Stored<
     key:base.key,
     get,
     set,
-    schema,
+    pattern,
     onupdate: listeners.push.bind(listeners),
     update,
     default: (t:T)=>{
@@ -68,7 +69,8 @@ export type DB = {
   signup(arg: {userid:string, passhash:string}):Promise<void>
   userid: string,
   changePassword(newPassword:string):Promise<void>
-  get<T extends JsonData>(key:string, schema:Schema, owner?:string): Stored<T>
+  disconnect(): void
+  get<T extends JsonData>(key:string, pattern:Pattern, owner?:string): Stored<T>
 }
 
 let rand = (digits:number) => Math.floor(Math.random()*10**digits).toString().padStart(digits, "0")
@@ -78,10 +80,10 @@ const mkkey = (owner:string, key:string) => owner.replaceAll(":", "_:") + ":" + 
 
 
 export type User = {userid: string, passhash: string}
-export const User:Schema = Schema.object({
-  userid: Schema.string,
-  passhash: Schema.string,
-}, ['userid', 'passhash'])
+export const User:Pattern = {
+  userid: String,
+  passhash: String,
+}
 
 export const randUser = ()=>({userid: 'u' + rand(4), passhash: hash(rand(6))})
 
@@ -91,7 +93,6 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
   .withDatabaseName("lexxtract")
   .onConnect(c=>{
     let localUser = LocalStored<User>("current_user_remote_hashed", User, randUser())
-    console.log(localUser.get())
     let pwd = ()=> localUser.get().passhash
 
     const signup = async (args:{userid:string, passhash:string}) => {
@@ -100,7 +101,7 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
       if (res.tag == "Success"){
         localUser.set(args)
         db.userid = args.userid
-      }else errorpopup("error signing up")
+      }else throw new Error("error signing up")
     }
 
     console.log("make db")
@@ -112,6 +113,9 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
       userid: localUser.get().userid,
       
       signup,
+      disconnect() {
+        c.disconnect()
+      },
       async changePassword(newPassword: string) {
         let newhash = hash(newPassword)
         let res = await c.procedures.changePassword({userid: db.userid, passhash:pwd(), newPasshash: newhash})
@@ -119,9 +123,9 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
         signup({userid: db.userid, passhash: newhash})
       },
 
-      get<T extends JsonData>(key: string, schema: Schema, owner?: string) {
+      get<T extends JsonData>(key: string, pattern: Pattern, owner?: string) {
 
-        let schema_key = key + hash(JSON.stringify(schema))
+        let schema_key = key + hash(format(pattern))
         owner ||= db.userid
         let owner_key = mkkey(owner, schema_key)
 
@@ -138,9 +142,9 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
                 if (!r) return rs(undefined)
                 cache = JSON.parse(r.value) as JsonData
                 try{
-                  validate(schema, cache)
+                  validate(pattern, cache)
                 }catch(e){
-                  cache = fillSchema(schema)
+                  cache = fill(pattern)
                 }
                 rs(cache)
                 sub.unsubscribe()
@@ -163,7 +167,7 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
               })
           
           };
-          hot_cache.set(owner_key, mkStored<T>(base, schema) as any as Stored<JsonData>)
+          hot_cache.set(owner_key, mkStored<T>(base, pattern) as any as Stored<JsonData>)
         }
         return hot_cache.get(owner_key) as any as Stored<T>
       }

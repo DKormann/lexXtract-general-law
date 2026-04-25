@@ -1,6 +1,7 @@
 import type { FunctionDef } from "../web/agent_functions"
 import type { Stored } from "./db"
-import type { JsonData, Schema, Taxonomy } from "./struct"
+import type { JsonData, Taxonomy } from "./struct"
+import type { Pattern } from "../web/pattern"
 
 export type Prompt = string
 
@@ -15,7 +16,7 @@ export type Document = {
 
 
 export type Module = {
-  db: <T extends JsonData>(key:string, schema:Schema)=>Stored<T>,
+  db: <T extends JsonData>(key:string, pattern:Pattern)=>Stored<T>,
   taxonomy: Stored<Taxonomy>
   documents: Stored<{[key:string]: string}>,
   extraction: Stored<JsonData>,
@@ -34,6 +35,5 @@ export type ETKOM = {
     extraction: JsonData
   }[]
 }
-
 
 

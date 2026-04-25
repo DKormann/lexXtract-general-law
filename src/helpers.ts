@@ -1,12 +1,12 @@
 // import { Role, type ExtractionItem, type Schema } from "./schemas"
-import { fillSchema, validate, type Schema } from "./struct"
 import gdpr from "./gdpr.json"
 import { hash } from "./hash"
+import { fill, format, validate, type Pattern } from "../web/pattern"
 
 let browser = typeof window !== "undefined"
 
 
-let format = (template:string, data:{[key:string]: string}):string=>{
+let formatTemplate = (template:string, data:{[key:string]: string}):string=>{
   Object.entries(data).forEach(([k,v])=>{
     if (!template.includes(`{${k}}`)) throw new Error(`Placeholder {${k}} not found in template`)
     template = template.replaceAll(`{${k}}`, v)
@@ -54,13 +54,13 @@ export type LocalStored<T> = {
   get:()=>T,
   set:(val:T)=>void,
 }
-export const LocalStored = <T>(key:string, schema:Schema, default_value?:T):LocalStored<T> =>{
-  key += hash(JSON.stringify(schema))
-  default_value ||= fillSchema(schema) as T
-  validate(schema, default_value)
+export const LocalStored = <T>(key:string, pattern:Pattern, default_value?:T):LocalStored<T> =>{
+  key += hash(format(pattern))
+  default_value ||= fill(pattern) as T
+  validate(pattern, default_value as any)
 
   const set = (val:T)=> {
-    validate(schema, val)
+    validate(pattern, val as any)
     storage.setItem(key, JSON.stringify(val))
   }
 
@@ -73,4 +73,3 @@ export const LocalStored = <T>(key:string, schema:Schema, default_value?:T):Loca
     set,
   }
 }
-

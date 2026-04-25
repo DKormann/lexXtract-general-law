@@ -1,20 +1,20 @@
-import { stringify, type JsonData } from "../src/struct"
+import { stringify, type JsonData, type JSONSchema } from "../src/struct"
 
 type ConstPattern = string | number | boolean | null
 type PrimitivePattern = StringConstructor | NumberConstructor | BooleanConstructor
 type ArrayPattern = [Pattern]
+type AnyPattern = {"$any": true}
 
 type ObjectPattern = { [key:string]: Pattern }
-type OpPattern = {"$ref": string} | {"$const": JsonData} | {"$defs": { [key: string]: Pattern}, pattern: Pattern } | Pattern[]
+type OpPattern = {"$ref": string} | {"$const": JsonData} | {"$defs": { [key: string]: Pattern}, pattern: Pattern } | AnyPattern | Pattern[]
 
 
 export type Pattern = ConstPattern | PrimitivePattern | ArrayPattern | ObjectPattern | Pattern[] | OpPattern
 
-export type Schema = {[key:string] : JsonData}
-
-export const toSchema = (pattern: Pattern): Schema => {
+export const toSchema = (pattern: Pattern): JSONSchema => {
   
-  const _toSchema = (pattern: Pattern): Schema => {
+  const _toSchema = (pattern: Pattern): JSONSchema => {
+    if (typeof pattern == "object" && pattern != null && "$any" in pattern) return {}
     if (pattern == String) return {type: "string"}
     if (pattern == Number) return {type: "number"}
     if (pattern == Boolean) return {type: "boolean"}
@@ -24,10 +24,10 @@ export const toSchema = (pattern: Pattern): Schema => {
     if (typeof pattern == "object"){
       if (pattern == null) return {type: "null"}
       if ("$const" in pattern) return {const: pattern["$const"] as JsonData}
-      if ("$ref" in pattern) return pattern as Schema
-      let props:{[key:string]: Schema} = {}
+      if ("$ref" in pattern) return pattern as JSONSchema
+      let props:{[key:string]: JSONSchema} = {}
       let required:string[] = []
-      let additionalProperties: Schema | undefined = undefined
+      let additionalProperties: JSONSchema | undefined = undefined
       Object.entries(pattern).forEach(([k,v])=>{
         if (k == "[key:string]") {
           additionalProperties = _toSchema(v)
@@ -38,7 +38,7 @@ export const toSchema = (pattern: Pattern): Schema => {
         else required.push(k)
         props[k] = _toSchema(v)
       })
-      let res: Schema = {type: "object", properties: props, required}
+      let res: JSONSchema = {type: "object", properties: props, required}
       if (additionalProperties) res.additionalProperties = additionalProperties
       return res
     }
@@ -71,6 +71,7 @@ export const format = (pattern: Pattern): string => {
     if (p == String) return "string"
     if (p == Number) return "number"
     if (p == Boolean) return "boolean"
+    if (typeof p == "object" && p != null && "$any" in p) return "any"
     if (typeof p == "string" || typeof p == "number" || typeof p == "boolean" || p === null) return JSON.stringify(p)
     if (p instanceof Array && p.length == 1) return `${go(p[0])}[]`
     if (p instanceof Array) return `(${p.map(go).join(" | ")})`
@@ -108,6 +109,7 @@ export const validate = (pattern: Pattern, data: JsonData): JsonData => {
     const raise = (msg:string) => {throw new Error(`Validation error at ${path.join(".")}:\n${format(p)}\nvs data: ${stringify(d)}\n${msg}`)}
     const assert = (condition:any, msg?:string) => {if (!condition) raise(msg || "assertion failed")}
 
+    if (typeof p == "object" && p != null && "$any" in p) return
     if (p == String) return assert(typeof d == "string")
     if (p == Number) return assert(typeof d == "number")
     if (p == Boolean) return assert(typeof d == "boolean")
@@ -154,25 +156,73 @@ export const validate = (pattern: Pattern, data: JsonData): JsonData => {
   return data
 }
 
-export const fromSchema = (schema: Schema): Pattern => {
+export const fill = (pattern: Pattern): JsonData => {
+  const go = (p: Pattern, root: Pattern): JsonData => {
+    if (typeof p == "object" && p != null && "$any" in p) return null
+    if (p == String) return ""
+    if (p == Number) return 0
+    if (p == Boolean) return false
+    if (typeof p == "string" || typeof p == "number" || typeof p == "boolean" || p === null) return p
+    if (p instanceof Array) return p.length == 1 ? [] : go(p[0]!, root)
+    if (typeof p == "object"){
+      if (p == null) return null
+      if ("$const" in p) return p.$const as JsonData
+      if ("$ref" in p) return go(resolve(root, p.$ref as string), root)
+      if ("$defs" in p) return go(p.pattern, p)
+      return Object.fromEntries(Object.entries(p)
+      .filter(([k])=>k != "[key:string]" && !k.endsWith("?"))
+      .map(([k,v])=>[k, go(v, root)]))
+    }
+    throw new Error("Invalid pattern: "+String(p))
+  }
+  return go(pattern, pattern)
+}
+
+export const fromSchema = (schema: JSONSchema): Pattern => {
+  if (!Object.keys(schema).length) return {$any: true}
   if ("const" in schema) return schema.const as ConstPattern
   if (schema.type == "string") return String
   if (schema.type == "number") return Number
   if (schema.type == "boolean") return Boolean
   if (schema.type == "null") return null
-  if (schema.type == "array" && "items" in schema) return [fromSchema(schema.items as Schema)]
-  if ("anyOf" in schema && schema.anyOf instanceof Array) return schema.anyOf.map(s=>fromSchema(s as Schema))
+  if (schema.type == "array" && "items" in schema) return [fromSchema(schema.items as JSONSchema)]
+  if ("anyOf" in schema && schema.anyOf instanceof Array) return schema.anyOf.map(s=>fromSchema(s as JSONSchema))
   if (schema.type == "object"){
     let res: ObjectPattern = {}
     if ("properties" in schema){
-      Object.entries(schema.properties as {[key:string]: Schema}).forEach(([k,v])=>{
+      Object.entries(schema.properties as {[key:string]: JSONSchema}).forEach(([k,v])=>{
         res[(schema.required instanceof Array && schema.required.includes(k)) ? k : k+"?"] = fromSchema(v)
       })
     }
-    if ("additionalProperties" in schema) res["[key:string]"] = fromSchema(schema.additionalProperties as Schema)
+    if ("additionalProperties" in schema) res["[key:string]"] = fromSchema(schema.additionalProperties as JSONSchema)
     return res
   }
   throw new Error("Unsupported schema: "+JSON.stringify(schema))
 
 }
 
+export const validateSchema = (schema: JSONSchema, data: JsonData): JsonData => validate(fromSchema(schema), data)
+
+export const SchemaPattern: Pattern = {
+  $defs: {
+    Json: [String, Number, Boolean, null, [{"$ref": "#/$defs/Json"}], {"[key:string]": {"$ref": "#/$defs/Json"}}],
+    Schema: [
+      {},
+      {type: "string"},
+      {type: "number"},
+      {type: "boolean"},
+      {type: "null"},
+      {type: "array", items: {"$ref": "#/$defs/Schema"}},
+      {
+        type: "object",
+        "properties?": {"[key:string]": {"$ref": "#/$defs/Schema"}},
+        "required?": [String],
+        "additionalProperties?": {"$ref": "#/$defs/Schema"}
+      },
+      {"$ref": String},
+      {anyOf: [{"$ref": "#/$defs/Schema"}]},
+      {const: {"$ref": "#/$defs/Json"}}
+    ]
+  },
+  pattern: {"$ref": "#/$defs/Schema"}
+}
