@@ -1,9 +1,9 @@
 import { button, div, errorpopup, h2, h3, p, popup, pre, style } from "./html";
 import { jsonView, viewer } from "./viewer";
 import type { Stored } from "../src/db";
-import type { JsonData, JSONSchema } from "../src/struct";
+import { stringify, type JsonData, type JSONSchema } from "../src/struct";
 import type { Module } from "../src/types";
-import { fill, fromSchema, SchemaPattern, validateSchema, type Pattern } from "./pattern";
+import { fill, fromSchema, SchemaPattern, toSchema, validateSchema, type Pattern } from "./pattern";
 
 
 export type FunctionDef = {
@@ -15,7 +15,7 @@ export type FunctionDef = {
 }
 
 
-const CapabilityPattern: Pattern = ["taxonomy", "documents", "prompt", "functions"]
+const CapabilityPattern: Pattern = ["taxonomy", "documents", "prompt", "functions", "extraction"]
 
 export const FunctionDefPattern: Pattern = {
   "description?": String,
@@ -49,9 +49,100 @@ export const mkRunner = (module:Module, v: FunctionDef): (args:{[key:string]:Jso
 
 }
 
+
+
 export const mkFunctions = async (module:Module)=>{
 
+  // const extraction = module.db<JsonData>("extraction", {"[category:string]": {"[subcategory:string]": {"[title:string]": {depiction: String, content: String}}}})
+
+
   const functions = module.db<{[key:string]: FunctionDef}>("functions", {"[key:string]": FunctionDefPattern})
+
+  await functions.get().then(funcs=>{
+    if (stringify(funcs) == "{}"){
+      return functions.set({
+        viewTaxonomy: {
+          description: "a function that returns the taxonomy",
+          parameters: {},
+          reads: ["taxonomy"],
+          code: `return taxonomy.get()`
+        },
+        addCategory: {
+          description: "add a category to the taxonomy",
+          parameters: {
+            categoryName: {type: "string"},
+          },
+          reads: ["taxonomy"],
+          writes: ["taxonomy"],
+          code: `
+            return taxonomy.update((t)=>{
+              categoryName ||= "newCat"
+              if (t.categories[categoryName]) return t
+              t.categories[categoryName] = {description: "a category", subCategories:{}}
+              return t
+            })
+           `
+        },
+        addSubcategory: {
+          description: "a function that adds a subcategory to the taxonomy",
+          parameters: {
+            categoryName: {type: "string"},
+            subcategoryName: {type: "string"},
+          },
+          reads: ["taxonomy"],
+          writes: ["taxonomy"],
+          code: `
+            return taxonomy.update((t)=>{
+              if (!t.categories[categoryName]) throw new Error("invalid category")
+              subcategoryName ||= "newSubcat"
+              if (t.categories[categoryName].subCategories[subcategoryName]) return t
+              t.categories[categoryName].subCategories[subcategoryName] = {description: "a subcategory"}
+              return t
+            })
+           `
+        },
+        addExtraction: {
+          description: "a function that adds an extraction to the extraction db",
+          parameters: {
+            categoryName: {type: "string"},
+            subcategoryName: {type: "string"},
+            title: {type: "string"},
+            depiction: {type: "string"},
+            content: {type: "string"},
+          },
+          reads: ["taxonomy", "extraction"],
+          writes: ["extraction"],
+          code: `
+            return taxonomy.get().then(t=>{
+              if (!t.categories[categoryName] || !t.categories[categoryName].subCategories[subcategoryName]) throw new Error("invalid category or subcategory")
+              return extraction.update(e=>{
+                if (!e[categoryName]) e[categoryName] = {}
+                if (!e[categoryName][subcategoryName]) e[categoryName][subcategoryName] = {}
+                e[categoryName][subcategoryName][title] = {depiction, content}
+                return e
+              })
+            })
+          `
+        },
+        viewExtractions: {
+          description: "a function that views extractions for a given category and subcategory",
+          parameters: {
+            categoryName: toSchema(["ALL", String]),
+            subcategoryName: toSchema(["ALL", String])
+          },
+          reads: ["extraction"],
+          code: `
+            return extraction.get().then(e=>{
+              if (categoryName == "ALL") return e
+              if (!e[categoryName]) throw new Error("invalid category")
+              if (subcategoryName == "ALL") return e[categoryName]
+              return e[categoryName][subcategoryName]
+            })
+           `
+        }
+      })
+    }
+  })
 
   const view = viewer(functions, d=>{
     return div(Object.entries(d as {[key:string]: FunctionDef}).map(([k,v])=>

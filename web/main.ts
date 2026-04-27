@@ -33,7 +33,7 @@ const TaxonomyPattern: Pattern = {
       subCategories: {
         "[key:string]": {
           description: String,
-          itemSchema: SchemaPattern
+          // itemSchema: SchemaPattern
         }
       }
     }
@@ -77,8 +77,6 @@ let loadUser = ()=>{
   
   const show_module = async (mod:ModPath) => {
 
-
-
     module_list.get().then(mods=>{if (!mods.map(x=>JSON.stringify(x)).includes(JSON.stringify(mod))) module_list.set([...mods, mod])})
     let modState: Stored<any>[] = []
 
@@ -104,7 +102,7 @@ let loadUser = ()=>{
     taxonomy.onupdate(()=>{
       show_module(mod)
     })
-    const extraction = mod_db<JsonData>("extraction", await taxonomy.get().then(taxonomyToPattern))
+    const extraction = mod_db<JsonData>("extraction", {"[key:string]": {"[key:string]": {"[key:string]": {depiction: String, content: String}}}})
 
     let module: Module = {
       db: mod_db,
@@ -135,10 +133,8 @@ let loadUser = ()=>{
   
     let Settings =div()
     let mksettings =()=> {
-  
       let pwd = input({type:"password", placeholder:"new password"})
       let apikey = input({ type:"password", placeholder:"new API key"})
-      
       Settings.replaceChildren (div(
         table(
           style({borderSpacing: "0.5em",}),

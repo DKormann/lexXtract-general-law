@@ -32,6 +32,9 @@ runTests(
     ] as [Pattern, any, boolean][])
     .forEach(([pattern, data, shouldPass])=> tryValidate(pattern as Pattern, data, shouldPass));
 
+    tryValidate({"$$ref": String}, {"$ref": "x"}, true)
+    tryValidate({"$$ref": String}, {ref: "x"}, false)
+
     let string_number = [String, Number]
     tryValidate(string_number, "hello", true)
     tryValidate(string_number, 123, true)
@@ -84,6 +87,32 @@ runTests(
     tryValidate(constPattern, {a: 2, b: "test"}, false)
 
     console.log(format({ee:33, "oo?":String}))
+
+    tryValidate(
+      {
+        $defs: {
+          Outer: {
+            $id: "outer",
+            value: String,
+            inner: {
+              $id: "inner",
+              value: Number
+            }
+          }
+        },
+        pattern: {
+          outer: {"$ref": "#/$defs/Outer"},
+          fromOuter: {"$ref": "outer#/value"},
+          fromInner: {"$ref": "inner#/value"}
+        }
+      },
+      {
+        outer: {value: "ok", inner: {value: 3}},
+        fromOuter: "ok",
+        fromInner: 3
+      },
+      true
+    )
     
   },
   function testPatternFormat(){
@@ -116,12 +145,14 @@ runTests(
       {
         type: "object",
         properties: {
+          "$ref": {type: "string"},
           name: {type: "string"},
           age: {type: "number"},
         },
-        required: ["name"]
+        required: ["$ref", "name"]
       },
       {
+        "$$ref": String,
         name: String,
         "age?": Number
        },

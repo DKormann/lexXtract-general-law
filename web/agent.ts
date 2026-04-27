@@ -3,14 +3,12 @@ import { chat, type ModelMessage, type ModelTool } from "../src/request";
 import { stringify, type JsonData } from "../src/struct";
 import type { Module } from "../src/types";
 import { mkRunner } from "./agent_functions";
-import { button, color, div, errorpopup, h2, input, p, popup, pre, style } from "./html";
+import { button, color, div, errorpopup, h2, input, p, popup, pre, style, textarea } from "./html";
 import { jsonView, viewer } from "./viewer";
 import { format, type Pattern } from "./pattern";
 
 
 type Tool = ModelTool & {runner: (args:JsonData)=>Promise<JsonData>}
-
-
 
 type Message = {role: "user" | "assistant" | "system", content: string}
 | {type: "function_call", id: string, call_id: string, name:string, arguments: string}
@@ -22,14 +20,14 @@ export const Message: Pattern = [
     content: String
   },
   {
-    _type: "function_call",
+    type: "function_call",
     id: String,
     call_id: String,
     name: String,
     arguments: String
   },
   {
-    _type: "function_call_output",
+    type: "function_call_output",
     call_id: String,
     output: String
   }
@@ -57,10 +55,81 @@ let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{
 
 export let cost_tracker = LocalStored<{total:string}>("cost_tracker", {total: String})
 
+const load_messages = async(module:Module) => {
+
+  let msg_display = div(style({marginBottom:"3em"}))
+
+  let show_msg = (m:ModelMessage) =>{
+    let role = "role" in m ? m.role : "system"
+    let content = "content" in m ? m.content : "name" in m ? `[function call: ${m.name}]` : `[function output: ${m.output.slice(0,100)}]`
+    let el = pre(
+      {onclick:()=>{
+        let pop = popup(
+          h2("message content"),
+          jsonView(m)
+        )
+      }},
+      style({
+        width:"fit-content",
+        fontWeight: role == "user" ? "bold" : "normal",
+        fontStyle: role == "system" ? "italic" : "none",
+        padding: ".2em",
+        margin: "0",
+        paddingLeft: role == "user" ? "0" : "1em",
+        textWrap: "wrap",
+      }),
+      content,
+    )
+    return el
+  }
 
 
+  let msgcount = module.db<number>("msgcount", Number)
+
+  let getmsg = (id:number) => module.db<ModelMessage>(`message_${id}`, Message)
+  let add = async (msg:ModelMessage) => {
+    let el = show_msg(msg)
+    msg_display.append(el)
+    let c = await msgcount.get() || 0
+    let mm = getmsg(c)
+    mm.onupdate(()=>{
+      mm.get().then(m=>{
+        let newel = show_msg(m)
+        el.replaceWith(newel)
+        el = newel
+      })
+    })
+    await Promise.all([
+      mm.set(msg),
+      msgcount.set(c+1)
+    ])
+    return mm
+  }
+  let reset = async ()=> {
+    msgcount.set(0)
+    msg_display.replaceChildren()
+  }
+
+  let get = async ()=>{
+    return msgcount.get().then(c=>{
+      return Promise.all(Array.from({length: c || 0}, (_,i)=>getmsg(i).get()))
+    })
+  }
+
+  get().then(msgs=>{
+    msgs.forEach(m=>{
+      let el = show_msg(m)
+      msg_display.append(el)
+    })
+  })
+
+  return {add, get, reset, el: msg_display}
+
+
+}
 
 export const mkAgent = async (module:Module)=>{
+
 
   let models = LocalStored<string[]>("models", [String], [
     "openai/gpt-oss-120b",
@@ -71,7 +140,7 @@ export const mkAgent = async (module:Module)=>{
 
   let model = module.db<string>("current_model", String)
 
-  let agent_msgs = module.db<ModelMessage[]>("agent_msgs", [Message])
+  let agent_msgs = await load_messages(module)
   let model_picker = div(style({
     position:"fixed",
     background: color.background,
@@ -79,6 +148,11 @@ export const mkAgent = async (module:Module)=>{
     borderRadius:".3em",
     top:"5em",
   }))
+
+  let reset_chat = async () => {
+    await agent_msgs.reset()
+    await agent_msgs.add({role:"system", content: await module.prompt.get() || ""})
+  }
   
   let setmodel = (m:string)=>{
     model_picker.replaceChildren("Model: ",
@@ -102,52 +176,30 @@ export const mkAgent = async (module:Module)=>{
         )
         let pop = mkpop()
       }}),
-      button("reset chat", {
-        onclick:async ()=>{
-          let msg = await module.prompt.get()
-          agent_msgs.set([{role:"system", content:msg}])
-          console.log(await agent_msgs.get())
-        }
-      })
+      button("reset chat", {onclick:reset_chat,}),
+      button("prompt settings", {onclick:async ()=>{
+
+        let ta = textarea()
+        ta.cols = 40;
+        ta.rows = 10;
+        ta.value = await module.prompt.get() || ""
+        let pop = popup(
+          h2("prompt settings"),
+          ta,
+          button("save", {
+            onclick:()=>{
+              module.prompt.set(ta.value)
+            }
+          })
+        )
+      }})
     )
   };
   setmodel(models.get()![0]!)
   model.get().then(setmodel)
   model.onupdate(()=>model.get().then(setmodel))
 
-  let msgs_view = div(style({marginBottom:"3em"}))
 
-  let show_msgs = ()=>{
-    agent_msgs.get().then(m=>{
-      console.log("Updating messages view with", m)
-      msgs_view.replaceChildren(...(m).map((msg:ModelMessage)=>{
-        let role = "role" in msg ? msg.role : msg.type;
-        let content = "content" in msg ? msg.content : "name" in msg ? `[function call: ${msg.name}]` : `[function output: ${msg.output}]`
-        return pre(
-          {onclick:()=>{
-            let pop = popup(
-              h2("message content"),
-              jsonView(msg)
-            )
-          }},
-          style({
-            width:"fit-content",
-            fontWeight: role == "user" ? "bold" : "normal",
-            fontStyle: role == "system" ? "italic" : "none",
-            padding: ".2em",
-            margin: "0",
-            paddingLeft: role == "user" ? "0" : "1em",
-            textWrap: "wrap",
-          }),
-          content,
-        )
-      }
-      ))
-    })
-  }
-
-  show_msgs()
-  agent_msgs.onupdate(show_msgs)
 
   let possibleTools:Tool[] = await module.functions.get().then(fs=>Object.entries(fs).map(([name,v])=>{
     let tool:Tool = 
@@ -180,32 +232,35 @@ export const mkAgent = async (module:Module)=>{
     intake.value = ""
     model.get().then(mod=>{
       let hint = pre("...")
-      msgs_view.append(hint)
       chat(nm, mod, possibleTools)
       .then(async r=>{
         hint.remove()
         console.log("Model response", r)
-        
-        await agent_msgs.update(ms=>[...ms, ...r.messages])
-
-        cost_tracker.set({total: String(Number(cost_tracker.get()!.total || "0") + r.cost)})
-        
-        let proms = r.messages.map(msg=>{
-          if ("type" in msg && msg.type == "function_call"){
-            return runtool(msg.name, msg.arguments).then(out=>
-              agent_msgs.update(ms=>ms.map(mm=>{
-                console.log("Checking message for update", stringify(mm))
-                if ("type" in mm && mm. type == "function_call_output" && mm.call_id == msg.call_id){
-                  return {...mm, output: JSON.stringify(out)}
-                }
-                return mm
-              }))
-            )
+        let proms: Promise<void>[] = [];
+        let outputs = new Map<string, (m:ModelMessage)=>void>();
+        for (let msg of r.messages){
+          let s = await agent_msgs.add(msg)
+          if ("type" in msg && msg.type == "function_call_output"){
+            outputs.set(msg.call_id, s.set)
           }
-        })
+        }
+        for (let msg of r.messages){
+          if ("type" in msg && msg.type == "function_call"){
+            let p = runtool(msg.name, msg.arguments).then(out=>{
+              let outmsg: ModelMessage = {type: "function_call_output", call_id: msg.call_id, output: JSON.stringify(out)}
+              if (outputs.has(msg.call_id)){
+                outputs.get(msg.call_id)!(outmsg)
+              }else{
+                agent_msgs.add(outmsg)
+              }
+            })
+            proms.push(p)
+          }
+        }
+        // show_msgs()
         await Promise.all(proms)
-        if (proms.some(p=>p!=undefined)) agent_msgs.get().then(runagent)
-        
+        // show_msgs()
+        if (proms.length > 0) agent_msgs.get().then(runagent)
       })
     })
   }
@@ -225,9 +280,8 @@ export const mkAgent = async (module:Module)=>{
     },
     onkeydown: e=>{
       if (e.key == "Enter"){
-        agent_msgs.get().then(m=>{
-          let nm = m.concat({role:"user", content: intake.value})
-          agent_msgs.set(nm).then(()=>runagent(nm))
+        agent_msgs.add({role:"user", content: intake.value}).then(s=>{
+          agent_msgs.get().then(runagent)
         })
       }
     }
@@ -235,7 +289,7 @@ export const mkAgent = async (module:Module)=>{
 
   let res = div(
     model_picker,
-    msgs_view,
+    agent_msgs.el,
     intake
 )
 
