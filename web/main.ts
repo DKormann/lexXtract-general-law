@@ -47,7 +47,6 @@ let urlrequest:ModPath | null = null
 
 location.search.split("&").forEach(param=>{
   if (param.startsWith("?")) param = param.slice(1)
-  console.log("URL param", param)
   let [key, value] = param.split("=")
   if (key == "module" && value){
     try {
@@ -125,8 +124,6 @@ let loadUser = ()=>{
       }
     }))
   
-    const Prompt = viewer(module.prompt)
-
   
     let Functions = await mkFunctions(module)
     let Agent = await mkAgent(module)

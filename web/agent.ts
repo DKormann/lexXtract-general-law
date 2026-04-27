@@ -33,7 +33,6 @@ export const Message: Pattern = [
   }
 ]
 
-console.log(format(Message))
 
 
 let mkbutton = (text:string, onclick:()=>void):HTMLButtonElement=>{

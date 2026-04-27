@@ -11,14 +11,10 @@ type OpPattern = {"$ref": string} | {"$const": JsonData} | {"$defs": { [key: str
 
 export type Pattern = ConstPattern | PrimitivePattern | ArrayPattern | ObjectPattern | Pattern[] | OpPattern
 
-const isObject = (pattern: Pattern): pattern is ObjectPattern =>
-  typeof pattern == "object" && pattern != null && !Array.isArray(pattern)
-const isRefPattern = (pattern: Pattern): pattern is {"$ref": string} =>
-  isObject(pattern) && "$ref" in pattern && typeof pattern.$ref == "string"
-const isDefsPattern = (pattern: Pattern): pattern is {"$defs": { [key: string]: Pattern}, pattern: Pattern } =>
-  isObject(pattern) && "$defs" in pattern && isObject(pattern.$defs) && "pattern" in pattern
-const hasStringId = (pattern: Pattern): pattern is ObjectPattern & {"$id": string} =>
-  isObject(pattern) && typeof (pattern as any).$id == "string"
+const isObject = (pattern: Pattern): pattern is ObjectPattern => typeof pattern == "object" && pattern != null && !Array.isArray(pattern)
+const isRefPattern = (pattern: Pattern): pattern is {"$ref": string} => isObject(pattern) && "$ref" in pattern && typeof pattern.$ref == "string"
+const isDefsPattern = (pattern: Pattern): pattern is {"$defs": { [key: string]: Pattern}, pattern: Pattern } => isObject(pattern) && "$defs" in pattern && isObject(pattern.$defs) && "pattern" in pattern
+const hasStringId = (pattern: Pattern): pattern is ObjectPattern & {"$id": string} => isObject(pattern) && typeof (pattern as any).$id == "string"
 const isKeywordKey = (key: string) => key.startsWith("$") && !key.startsWith("$$")
 const literalKey = (key: string) => key.startsWith("$$") ? key.slice(1) : key
 const patternKey = (key: string) => key.startsWith("$") ? "$" + key : key
@@ -66,7 +62,9 @@ export const toSchema = (pattern: Pattern): JSONSchema => {
         if (!prop.optional) required.push(prop.key)
         props[prop.key] = _toSchema(prop.pattern)
       })
-      let res: JSONSchema = {type: "object", properties: props, required}
+      let res: JSONSchema = {type: "object"}
+      if (Object.keys(props).length > 0) res.properties = props
+      if (required.length > 0) res.required = required
       if (hasStringId(pattern)) res.$id = pattern.$id
       if (additionalProperties) res.additionalProperties = additionalProperties
       return res

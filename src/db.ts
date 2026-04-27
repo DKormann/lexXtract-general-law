@@ -96,15 +96,12 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
     let pwd = ()=> localUser.get().passhash
 
     const signup = async (args:{userid:string, passhash:string}) => {
-      console.log("Signing up user", args.userid)
       let res = await c.procedures.signup(args)
       if (res.tag == "Success"){
         localUser.set(args)
         db.userid = args.userid
       }else throw new Error("error signing up")
     }
-
-    console.log("make db")
 
     const hot_cache = new Map<string, Stored<JsonData>>()
     
@@ -172,7 +169,6 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
         return hot_cache.get(owner_key) as any as Stored<T>
       }
     }
-    console.log("signin")
     db.signup(localUser.get()).then(()=>res(db))
     .catch(()=>{
       db.signup(randUser())

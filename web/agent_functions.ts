@@ -59,7 +59,8 @@ export const mkFunctions = async (module:Module)=>{
   const functions = module.db<{[key:string]: FunctionDef}>("functions", {"[key:string]": FunctionDefPattern})
 
   await functions.get().then(funcs=>{
-    if (stringify(funcs) == "{}"){
+    // if (stringify(funcs) == "{}")
+    {
       return functions.set({
         viewTaxonomy: {
           description: "a function that returns the taxonomy",
@@ -123,6 +124,14 @@ export const mkFunctions = async (module:Module)=>{
               })
             })
           `
+        },
+        viewDocuments:{
+          description: "view all documents",
+          parameters: {},
+          reads: ["documents"],
+          code: `
+            return documents.get()
+           `
         },
         viewExtractions: {
           description: "a function that views extractions for a given category and subcategory",

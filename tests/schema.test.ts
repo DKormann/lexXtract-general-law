@@ -86,6 +86,8 @@ runTests(
     tryValidate(constPattern, {b: "test"}, false)
     tryValidate(constPattern, {a: 2, b: "test"}, false)
 
+
+
     console.log(format({ee:33, "oo?":String}))
 
     tryValidate(
@@ -113,6 +115,11 @@ runTests(
       },
       true
     )
+
+    tryValidate({$style:"color: red", tag: String}, {tag: "test"}, true)
+    tryValidate({$$type: String}, {$type: "test"}, true)
+    tryValidate({type: String}, {type: "test"}, true)
+    tryValidate({type: String}, {}, false)
     
   },
   function testPatternFormat(){
@@ -140,7 +147,6 @@ runTests(
     assertFromSchema({type: "string"}, String, "Failed to convert string schema")
     assertFromSchema({type: "number"}, Number, "Failed to convert number schema")
 
-
     assertFromSchema(
       {
         type: "object",
@@ -159,5 +165,6 @@ runTests(
        "Failed to convert object schema with required and optional properties"
     )
 
-  }
+  },
+
 )
