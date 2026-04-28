@@ -6,7 +6,7 @@ import { LocalStored } from "../model/helpers";
 import { chat, localApiKey } from "../controller/request";
 import type { JsonData, JSONSchema, Taxonomy } from "../model/struct";
 import { ModPath, type FunctionDef, type Module } from "../model/types";
-import { background, body, button, color, div, errorpopup, h2, h3, height, input, margin, p, padding, popup, pre, span, style, table, td, textarea, tr, type HTMLArg } from "./html";
+import { background, body, button, color, display, div, errorpopup, h2, h3, height, input, margin, p, padding, popup, pre, span, style, table, td, textarea, tr, type HTMLArg } from "./html";
 import { jsonView, viewer } from "./viewer";
 import { cost_tracker, mkAgent } from "./agent";
 import { fill, fromSchema, SchemaPattern, type Pattern } from "../model/pattern";
@@ -259,14 +259,21 @@ let loadUser = async ()=>{
     let storedisplay = div(style({
       position: "fixed",
       background: color.gray,
-      color: color.green
+      color: color.green,
+      zIndex: "2000",
+      padding: "1em",
+      borderRadius: ".5em",
+      display:"none",
+
     }))
     setInterval(() => {
+      storedisplay.style.display = "none"
       if (db.saving!=0){
         storedisplay.style.display = "block"
         storedisplay.textContent = "saving "+db.saving+" items"
       }
     },100)
+    console.log(storedisplay)
     body.replaceChildren(
       div(
         storedisplay,
