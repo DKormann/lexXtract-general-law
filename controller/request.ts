@@ -1,6 +1,6 @@
-import { errorpopup } from "../web/html";
-import { LocalStored } from "./helpers";
-import { parse, stringify, type JsonData, type JSONSchema } from "./struct";
+
+import { LocalStored } from "../model/helpers";
+import { parse, stringify, type JsonData, type JSONSchema } from "../model/struct";
 
 
 type ModelResponse = {

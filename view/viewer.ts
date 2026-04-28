@@ -1,9 +1,8 @@
-import { db } from "../src/app";
-import type { Stored } from "../src/db";
-import type { JsonData } from "../src/struct";
+import { db } from "../controller/app";
+import type { Stored } from "../model/db";
+import type { JsonData } from "../model/struct";
 import { button, color, div, errorpopup, p, padding, popup, pre, span, style, textarea } from "./html";
-import type { ModPath } from "./main";
-import { format, validate, type Pattern } from "./pattern";
+import { format, validate, type Pattern } from "../model/pattern";
 
 export const jsonView = (d:JsonData):HTMLElement =>{
 
@@ -22,24 +21,23 @@ export const jsonView = (d:JsonData):HTMLElement =>{
 
 export const viewer = <T extends JsonData>(
   data: {
-    get: ()=>Promise<T>,
+    get: ()=>T,
     set: (t:T)=>Promise<void>,
-    pattern: Pattern
+    pattern: Pattern,
+    onupdate?: (f:()=>void)=>void
   },
-  viewer:(d:JsonData)=>HTMLElement = jsonView) => {
-
+  displayfn:(d:JsonData)=>HTMLElement = jsonView) => {
 
   let editmode = false
   let bod = div("loading...")
   let but = button("edit", {onclick:()=>setedit(!editmode)})
   let cancel = button("cancel", {onclick:()=>{
     editmode = false
-    bod.replaceChildren(viewer(dat))
+    bod.replaceChildren(displayfn(data.get()))
     but.textContent = "edit"
   }})
   let el = div(but, bod)
 
-  let dat:JsonData = ""
   let editstatus = p()
   let patternview = pre(style({ color:color.gray}), `expected type:\n${format(data.pattern)}`)
 
@@ -59,12 +57,11 @@ export const viewer = <T extends JsonData>(
     width: "100%",
   }})
 
-
   let setedit = (val:boolean)=>{
-    
     editmode = val
     if (editmode){
-      editor.textContent = JSON.stringify(dat, null, 2)
+
+      editor.textContent = JSON.stringify(data.get(), null, 2)
       bod.replaceChildren(cancel, editor, editstatus, patternview)
       editor.focus()
       but.textContent = "save"
@@ -74,8 +71,7 @@ export const viewer = <T extends JsonData>(
         let next = JSON.parse(editor.textContent)
         data.set(next).then(()=>{
           but.textContent = "edit"
-          dat = next
-          bod.replaceChildren(viewer(dat))
+          bod.replaceChildren(displayfn(data.get()))
         })
         
       } catch(e){
@@ -85,10 +81,8 @@ export const viewer = <T extends JsonData>(
     }
   }
 
-  data.get().then(d=>{
-    dat = d
-    bod.replaceChildren(viewer(dat))
-  })
+  bod.replaceChildren(displayfn(data.get()))
+  if (data.onupdate) data.onupdate(()=>{bod.replaceChildren(displayfn(data.get()))})
   return el
 
 }

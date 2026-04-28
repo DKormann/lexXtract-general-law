@@ -1,4 +1,4 @@
-import { stringify, type JsonData, type JSONSchema } from "../src/struct"
+import { stringify, type JsonData, type JSONSchema } from "./struct"
 
 type ConstPattern = string | number | boolean | null
 type PrimitivePattern = StringConstructor | NumberConstructor | BooleanConstructor
@@ -299,4 +299,20 @@ export const SchemaPattern: Pattern = {
     ]
   },
   pattern: {"$ref": "#/$defs/Schema"}
+}
+
+
+
+export const TaxonomyPattern: Pattern = {
+  categories: {
+    "[key:string]": {
+      description: String,
+      subCategories: {
+        "[key:string]": {
+          description: String,
+          // itemSchema: SchemaPattern
+        }
+      }
+    }
+  }
 }

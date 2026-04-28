@@ -1,6 +1,6 @@
 import { assert, assertEqualJSON, expectError, runTests } from "./test";
-import { format, fromSchema, validate, type Pattern } from "../web/pattern";
-import type { JSONSchema } from "../src/struct";
+import { format, fromSchema, validate, type Pattern } from "../model/pattern";
+import type { JSONSchema } from "../model/struct";
 
 runTests(
 

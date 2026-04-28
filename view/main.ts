@@ -1,47 +1,21 @@
-import { FunctionDefPattern, mkFunctions } from "./agent_functions";
-import { db  } from "../src/app";
-import { randUser, type Stored } from "../src/db";
-import { hash } from "../src/hash";
-import { LocalStored } from "../src/helpers";
-import { chat, localApiKey } from "../src/request";
-import type { JsonData, Taxonomy } from "../src/struct";
-import type { Module } from "../src/types";
-import { background, body, border, button, color, div, errorpopup, h2, h3, height, input, margin, p, padding, popup, pre, span, style, table, td, textarea, tr, type HTMLArg } from "./html";
-import { viewer } from "./viewer";
+import { FunctionDefPattern, mkRunner } from "../controller/agent_functions";
+import { createModule, db  } from "../controller/app";
+import { randUser, type Stored } from "../model/db";
+import { hash } from "../model/db";
+import { LocalStored } from "../model/helpers";
+import { chat, localApiKey } from "../controller/request";
+import type { JsonData, JSONSchema, Taxonomy } from "../model/struct";
+import { ModPath, type FunctionDef, type Module } from "../model/types";
+import { background, body, button, color, div, errorpopup, h2, h3, height, input, margin, p, padding, popup, pre, span, style, table, td, textarea, tr, type HTMLArg } from "./html";
+import { jsonView, viewer } from "./viewer";
 import { cost_tracker, mkAgent } from "./agent";
-import { fromSchema, SchemaPattern, type Pattern } from "./pattern";
+import { fill, fromSchema, SchemaPattern, type Pattern } from "../model/pattern";
 
 let locstring = location.href.split("?")[0] || ""
 
-export type ModPath = {
-  owner: string,
-  name: string
-}
 
-export const ModPath:Pattern = {
-  owner: String,
-  name: String,
-}
+const objectMap = <T, U>(obj: {[key:string]: T}, fn: (t:T, k:string)=>U): {[key:string]: U} =>Object.fromEntries(Object.entries(obj).map(([k,v])=>[k, fn(v, k)]))
 
-const objectMap = <T, U>(obj: {[key:string]: T}, fn: (t:T, k:string)=>U): {[key:string]: U} =>
-  Object.fromEntries(Object.entries(obj).map(([k,v])=>[k, fn(v, k)]))
-
-const TaxonomyPattern: Pattern = {
-  categories: {
-    "[key:string]": {
-      description: String,
-      subCategories: {
-        "[key:string]": {
-          description: String,
-          // itemSchema: SchemaPattern
-        }
-      }
-    }
-  }
-}
-
-const taxonomyToPattern = (t: Taxonomy): Pattern =>
-  objectMap(t.categories, cat => objectMap(cat.subCategories, subcat => ({ "[key:string]": fromSchema(subcat.itemSchema) })))
 
 let urlrequest:ModPath | null = null
 
@@ -67,65 +41,38 @@ let accountsettings = {
   }
 }
 
-let loadUser = ()=>{
 
-  let module_list = db.get<ModPath[]>("modules", [ModPath])
-  let current_module = db.get<ModPath>("current_module", ModPath)
+let loadUser = async ()=>{
+  console.log("Loading user...")
+
+  let module_list = await db.get<ModPath[]>("modules", [ModPath])
+  console.log("Module list:", module_list.get())
+  let current_module = await db.get<ModPath>("current_module", ModPath)
+  console.log(current_module.get())
 
   if (urlrequest) current_module.set(urlrequest)
   
   const show_module = async (mod:ModPath) => {
+    console.log("Loading module", mod)
 
-    module_list.get().then(mods=>{if (!mods.map(x=>JSON.stringify(x)).includes(JSON.stringify(mod))) module_list.set([...mods, mod])})
-    let modState: Stored<any>[] = []
+    let module = await createModule(mod, show_module);
 
-    let mod_db = <T extends JsonData> (key:string, pattern:Pattern) => {
-      let st = db.get<T>(mod.name+":"+key, pattern, mod.owner)
-      if (mod.owner != db.userid) st.set = async (val:T)=>{
-        let pop = popup(
-          h2(`You cannot edit this module`),
-          p(`it is owned by ${mod.owner}`),
-          p('do you need to make a copy of this module to edit?'),
-          button(`copy ${mod.name}`, {onclick: async ()=>{
-            await Promise.all(modState.map(s=>s.get().then(d=>db.get(s.key, s.pattern, db.userid).set(d).then(()=>{console.log("copied", s.key, d)}))))
-            await current_module.set({name:mod.name, owner: db.userid})
-          }})
-        )
-      }
-      modState.push(st as any as Stored<JsonData>)
-      return st
-    }
+    const Taxonomy = viewer(module.taxonomy)
 
-    const taxonomy = mod_db<Taxonomy>("taxonomy", TaxonomyPattern)
-
-    taxonomy.onupdate(()=>{
-      show_module(mod)
+    module.taxonomy.onupdate(()=>{
+      console.log("taxonomy updated", module.taxonomy.get())
     })
-    const extraction = mod_db<JsonData>("extraction", {"[key:string]": {"[key:string]": {"[key:string]": {depiction: String, content: String}}}})
 
-    let module: Module = {
-      db: mod_db,
-      functions: mod_db("functions", {"[key:string]": FunctionDefPattern}),
-      taxonomy,
-      extraction,
-      documents: mod_db<{[key:string]: string}>("documents", {"[key:string]": String}),
-      prompt: mod_db<string>("prompt", String)
-    }
-
-
-    const Taxonomy = viewer(taxonomy)
 
     const Documents = div(viewer(module.documents), button("+add", {
       onclick:()=>{
-        module.documents.get().then((docs)=>{
           let title = prompt("doc title")
-          if (title) module.documents.set({...docs as {[key:string]:string}, [title] : ""})
-        })
+          if (title) module.documents.set({...module.documents.get() , [title] : ""})
       }
     }))
   
   
-    let Functions = await mkFunctions(module)
+    // let Functions = await mkFunctions(module)
     let Agent = await mkAgent(module)
   
     let Settings =div()
@@ -176,6 +123,68 @@ let loadUser = ()=>{
       ))
     }
     mksettings()
+
+
+
+    let Functions = viewer(module.functions, d=>{
+      return div(Object.entries(d as {[key:string]: FunctionDef}).map(([k,v])=>
+      {
+        let details = div(style({
+          paddingLeft: "1em",
+        }))
+        return div(
+          h3(k,
+            button("call", {
+              onclick:()=>{
+
+                let argsSchema = {type: "object", properties: v.parameters, required: Object.keys(v.parameters)} as JSONSchema
+                let args = fill(fromSchema(argsSchema)) as {[par:string]: JsonData}
+                
+                let pop = popup(
+                  h2("call "+ k),
+                  v.description? p(v.description) : [],
+                  h3("arguments"),
+                  viewer({
+                    get: ()=>args,
+                    set: async (a:{[par:string]:JsonData})=>{args = a},
+                    pattern: fromSchema(argsSchema)
+                  }),
+                  button("execute", {
+                    onclick:async ()=>{
+                      
+                      try{
+                        let res = await mkRunner(module, v)(args)
+                        pop.remove()
+                        if (res !== undefined) popup(
+                          h2("result"),
+                          jsonView(res)
+                        )
+                      }catch(e){
+                        errorpopup(e as Error)
+                      }
+                    }
+                  })
+                )
+              }
+            }),
+            button("details", {onclick:()=>{
+              if (details.childElementCount == 0){
+                details.append(viewer({
+                  get: ()=>v,
+                  set: async (a:FunctionDef)=>module.functions.update(fs=>({...fs, [k]: a})),
+                  pattern: FunctionDefPattern
+                }))
+              }else{
+                details.replaceChildren()
+              }
+            }})
+          ),
+          p(v.description || ""),
+          details,
+        )
+      }
+    ))
+    })
 
     
     const sections : {[key:string]: HTMLElement} = {
@@ -247,16 +256,28 @@ let loadUser = ()=>{
       }})
     
   
+    let storedisplay = div(style({
+      position: "fixed",
+      background: color.gray,
+      color: color.green
+    }))
+    setInterval(() => {
+      if (db.saving!=0){
+        storedisplay.style.display = "block"
+        storedisplay.textContent = "saving "+db.saving+" items"
+      }
+    },100)
     body.replaceChildren(
       div(
+        storedisplay,
         h2("lexxtract : " + (mod.owner == db.userid ? "" : mod.owner + " / ") + (mod.name || "unnamed module"),share),
         button("+add module", {onclick:()=>{
           let name = prompt("Module name")
           if (!name) return
-          module_list.get().then(mods=>{
-            module_list.set([...mods, {name, owner: db.userid}])
+          // module_list.get().then(mods=>{
+            module_list.set([...module_list.get(), {name, owner: db.userid}])
             current_module.set({name, owner: db.userid})
-          })
+          // })
         }}),
         button("pick module", {
         onclick:async ()=>{
@@ -292,9 +313,12 @@ let loadUser = ()=>{
     )
   }
 
-  current_module.get().then(mod=>{show_module(mod)})
-  current_module.onupdate(()=>current_module.get().then(mod=>{show_module(mod)}))
-
+  show_module(current_module.get())
+  current_module.onupdate(()=>show_module(current_module.get()))
 }
 
-loadUser()
+if (typeof window !== "undefined"){
+
+  loadUser()
+}
+

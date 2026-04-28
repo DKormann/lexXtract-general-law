@@ -1,7 +1,6 @@
 // import { Role, type ExtractionItem, type Schema } from "./schemas"
-import gdpr from "./gdpr.json"
-import { hash } from "./hash"
-import { fill, format, validate, type Pattern } from "../web/pattern"
+import { hash } from "./db"
+import { fill, format, validate, type Pattern } from "./pattern"
 
 let browser = typeof window !== "undefined"
 

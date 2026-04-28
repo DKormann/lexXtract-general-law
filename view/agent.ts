@@ -1,11 +1,11 @@
-import { LocalStored } from "../src/helpers";
-import { chat, type ModelMessage, type ModelTool } from "../src/request";
-import { stringify, type JsonData } from "../src/struct";
-import type { Module } from "../src/types";
-import { mkRunner } from "./agent_functions";
+import { LocalStored } from "../model/helpers";
+import { chat, type ModelMessage, type ModelTool } from "../controller/request";
+import { type JsonData } from "../model/struct";
+import type { Module } from "../model/types";
+import { mkRunner } from "../controller/agent_functions";
 import { button, color, div, errorpopup, h2, input, p, popup, pre, style, textarea } from "./html";
 import { jsonView, viewer } from "./viewer";
-import { format, type Pattern } from "./pattern";
+import { format, type Pattern } from "../model/pattern";
 
 
 type Tool = ModelTool & {runner: (args:JsonData)=>Promise<JsonData>}
@@ -83,20 +83,18 @@ const load_messages = async(module:Module) => {
   }
 
 
-  let msgcount = module.db<number>("msgcount", Number)
+  let msgcount = await module.db<number>("msgcount", Number)
 
-  let getmsg = (id:number) => module.db<ModelMessage>(`message_${id}`, Message)
+  let getmsg = async (id:number) => await module.db<ModelMessage>(`message_${id}`, Message)
   let add = async (msg:ModelMessage) => {
     let el = show_msg(msg)
     msg_display.append(el)
-    let c = await msgcount.get() || 0
-    let mm = getmsg(c)
-    mm.onupdate(()=>{
-      mm.get().then(m=>{
-        let newel = show_msg(m)
-        el.replaceWith(newel)
-        el = newel
-      })
+    let c =  msgcount.get() || 0
+    let mm = await getmsg(c)
+    mm.onupdate(async ()=>{
+      let newel = show_msg((await mm).get())
+      el.replaceWith(newel)
+      el = newel
     })
     await Promise.all([
       mm.set(msg),
@@ -109,11 +107,7 @@ const load_messages = async(module:Module) => {
     msg_display.replaceChildren()
   }
 
-  let get = async ()=>{
-    return msgcount.get().then(c=>{
-      return Promise.all(Array.from({length: c || 0}, (_,i)=>getmsg(i).get()))
-    })
-  }
+  let get = async ()=>{return Promise.all(Array.from({length: msgcount.get() || 0}, async (_,i)=>(await getmsg(i)).get()))}
 
   get().then(msgs=>{
     msgs.forEach(m=>{
@@ -137,7 +131,7 @@ export const mkAgent = async (module:Module)=>{
   ])
 
 
-  let model = module.db<string>("current_model", String)
+  let model = await module.db<string>("current_model", String)
 
   let agent_msgs = await load_messages(module)
   let model_picker = div(style({
@@ -194,13 +188,11 @@ export const mkAgent = async (module:Module)=>{
       }})
     )
   };
-  setmodel(models.get()![0]!)
-  model.get().then(setmodel)
-  model.onupdate(()=>model.get().then(setmodel))
 
+  setmodel(model.get() || models.get()[0]!)
+  model.onupdate(()=>setmodel(model.get()))
 
-
-  let possibleTools:Tool[] = await module.functions.get().then(fs=>Object.entries(fs).map(([name,v])=>{
+  let possibleTools:Tool[] = await (Object.entries(module.functions.get()).map(([name,v])=>{
     let tool:Tool = 
     {
       type: "function",
@@ -229,9 +221,9 @@ export const mkAgent = async (module:Module)=>{
 
   let runagent = (nm:ModelMessage[])=>{
     intake.value = ""
-    model.get().then(mod=>{
+    // model.get().then(mod=>{
       let hint = pre("...")
-      chat(nm, mod, possibleTools)
+      chat(nm, model.get(), possibleTools)
       .then(async r=>{
         hint.remove()
         console.log("Model response", r)
@@ -256,12 +248,10 @@ export const mkAgent = async (module:Module)=>{
             proms.push(p)
           }
         }
-        // show_msgs()
         await Promise.all(proms)
-        // show_msgs()
         if (proms.length > 0) agent_msgs.get().then(runagent)
       })
-    })
+    // })
   }
 
 
