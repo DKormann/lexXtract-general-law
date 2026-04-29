@@ -239,23 +239,6 @@ let loadUser = async ()=>{
       ))}
     if (defaultSection.get() in sections) renderSideBar(defaultSection.get()!)
   
-    // let share = span("🔗share", {
-    //   style:{
-    //     cursor:"pointer",
-    //     marginLeft:"1em",
-    //     fontSize:"0.8em",
-    //     color:color.gray,
-    //     border:`1px solid ${color.gray}`,
-    //     padding:"0.2em",
-    //     borderRadius:".3em"
-    //   },
-    //   onclick:()=>{
-    //     navigator.clipboard.writeText("https://dkormann.github.io/lexXtract-general-law/"+"?module="+encodeURIComponent(JSON.stringify(mod)))
-    //     share.textContent = "✅copied!"
-    //     setTimeout(() => {share.textContent = "🔗share"}, 1000);
-    // }})
-
-
     let headbutton = (text:string, onclick:()=>void):HTMLElement=>span(text, {
       style:{
         cursor:"pointer",
@@ -267,11 +250,7 @@ let loadUser = async ()=>{
         borderRadius:".3em"
       },
       onclick})
-    
 
-
-
-  
     let storedisplay = div(style({
       position: "fixed",
       background: color.gray,
@@ -356,7 +335,7 @@ let loadUser = async ()=>{
   show_module(
     current_module.get()
   )
-  if (urlrequest) current_module.set(urlrequest)
+  if (urlrequest) {current_module.set(urlrequest); show_module(current_module.get())}
 
   current_module.onupdate(()=>show_module(current_module.get()))
 }
