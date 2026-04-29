@@ -13,18 +13,16 @@ import { fill, fromSchema, SchemaPattern, type Pattern } from "../model/pattern"
 
 let locstring = location.href.split("?")[0] || ""
 
-
-const objectMap = <T, U>(obj: {[key:string]: T}, fn: (t:T, k:string)=>U): {[key:string]: U} =>Object.fromEntries(Object.entries(obj).map(([k,v])=>[k, fn(v, k)]))
-
-
 let urlrequest:ModPath | null = null
 
 location.search.split("&").forEach(param=>{
   if (param.startsWith("?")) param = param.slice(1)
+  console.log("URL param:", param)
   let [key, value] = param.split("=")
   if (key == "module" && value){
     try {
       urlrequest = JSON.parse(decodeURIComponent(value)) as ModPath;
+      console.log("Module request from URL:", urlrequest)
       location.search = ""
     }
     catch(e) {console.error("Failed to parse module from URL", e)}
@@ -50,7 +48,7 @@ let loadUser = async ()=>{
   let current_module = await db.get<ModPath>("current_module", ModPath)
   console.log(current_module.get())
 
-  if (urlrequest) current_module.set(urlrequest)
+
   
   const show_module = async (mod:ModPath) => {
     console.log("Loading module", mod)
@@ -352,7 +350,14 @@ let loadUser = async ()=>{
     )
   }
 
-  show_module(current_module.get())
+
+
+
+  show_module(
+    current_module.get()
+  )
+  if (urlrequest) current_module.set(urlrequest)
+
   current_module.onupdate(()=>show_module(current_module.get()))
 }
 
