@@ -2,6 +2,9 @@
 
 # lexxtract general law
 
+
+[live website](https://dkormann.github.io/lexXtract-general-law)
+
 agentic data extraction and organisation tool
 
 
