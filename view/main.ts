@@ -214,32 +214,51 @@ let loadUser = async ()=>{
     let renderSideBar = (item:string) =>{
       defaultSection.set(item)
       return sidebar.replaceChildren(div(
-
-      style({
-        display:"flex",
-        flexDirection:"column",
-        borderRight:`1px solid ${color.gray}`,
-        width:"200px",
-        height:"80vh",
-      }),
-      ...Object.entries(sections).map(([k,v])=>{
-        if (item == k) content.replaceChildren(v)
-        return h3(k, {
-          style:{
-            cursor:"pointer",
-            margin:0,
-            padding:".4em",
-            ...(item == k ? {
-              background: color.gray,
-            } : {})
-          },
-          onclick: ()=>renderSideBar(k)
+        style({
+          display:"flex",
+          flexDirection:"column",
+          borderRight:`1px solid ${color.gray}`,
+          width:"200px",
+          height:"100vh",
+          position:"sticky",
+          top:"1em",
+          padding:"1em",
+        }),
+        ...Object.entries(sections).map(([k,v])=>{
+          if (item == k) content.replaceChildren(v)
+          return h3(k, {
+            style:{
+              cursor:"pointer",
+              margin:0,
+              padding:".4em",
+              ...(item == k ? {
+                background: color.gray,
+              } : {})
+            },
+            onclick: ()=>renderSideBar(k)
+          })
         })
-      })
-    ))}
+      ))}
     if (defaultSection.get() in sections) renderSideBar(defaultSection.get()!)
   
-    let share = span("🔗share", {
+    // let share = span("🔗share", {
+    //   style:{
+    //     cursor:"pointer",
+    //     marginLeft:"1em",
+    //     fontSize:"0.8em",
+    //     color:color.gray,
+    //     border:`1px solid ${color.gray}`,
+    //     padding:"0.2em",
+    //     borderRadius:".3em"
+    //   },
+    //   onclick:()=>{
+    //     navigator.clipboard.writeText("https://dkormann.github.io/lexXtract-general-law/"+"?module="+encodeURIComponent(JSON.stringify(mod)))
+    //     share.textContent = "✅copied!"
+    //     setTimeout(() => {share.textContent = "🔗share"}, 1000);
+    // }})
+
+
+    let headbutton = (text:string, onclick:()=>void):HTMLElement=>span(text, {
       style:{
         cursor:"pointer",
         marginLeft:"1em",
@@ -249,12 +268,11 @@ let loadUser = async ()=>{
         padding:"0.2em",
         borderRadius:".3em"
       },
-      onclick:()=>{
-        navigator.clipboard.writeText("https://dkormann.github.io/lexXtract-general-law/"+"?module="+encodeURIComponent(JSON.stringify(mod)))
-        share.textContent = "✅copied!"
-        setTimeout(() => {share.textContent = "🔗share"}, 1000);
-      }})
+      onclick})
     
+
+
+
   
     let storedisplay = div(style({
       position: "fixed",
@@ -274,39 +292,53 @@ let loadUser = async ()=>{
       }
     },100)
     console.log(storedisplay)
+
+    let share = headbutton("🔗share", ()=>{
+          navigator.clipboard.writeText("https://dkormann.github.io/lexXtract-general-law/"+"?module="+encodeURIComponent(JSON.stringify(mod)))
+          share.textContent = "✅copied!"
+          setTimeout(() => {share.textContent = "🔗share"}, 1000)
+          });
+
+    let pickmod = headbutton("📂pick", async ()=>
+      {
+        let mods = await module_list.get()
+        let pop = popup(
+          h3("choose a module"),
+          mods.map(m=>{
+            let pp =  p(
+                button('-', {onclick:()=>{
+                  if (confirm("Are you sure you want to delete this module? This action cannot be undone.")){
+                    module_list.update(l=>l.filter(x=>JSON.stringify(x)!=JSON.stringify(m)))
+                    if (current_module.get() && JSON.stringify(current_module.get()) == JSON.stringify(m)){
+                      current_module.set(module_list.get()[0]!)
+                    }
+                    pp.remove()
+                  }
+                }}),
+                button(m.owner,"/", m.name, {onclick:()=>{
+                current_module.set(m)
+                pop.remove()
+              }})
+            )
+            return pp
+          })
+        )
+      })
+    let addmod = headbutton("➕add", ()=>{
+      let name = prompt("Module name")
+      if (!name) return
+      let newmod = {name, owner: db.userid} as ModPath
+      module_list.set([...module_list.get(), newmod])
+      current_module.set(newmod)
+    })
+
     body.replaceChildren(
       div(
         storedisplay,
-        h2("lexxtract : " + (mod.owner == db.userid ? "" : mod.owner + " / ") + (mod.name || "unnamed module"),share),
-        button("+add module", {onclick:()=>{
-          let name = prompt("Module name")
-          if (!name) return
-          // module_list.get().then(mods=>{
-            module_list.set([...module_list.get(), {name, owner: db.userid}])
-            current_module.set({name, owner: db.userid})
-          // })
-        }}),
-        button("pick module", {
-        onclick:async ()=>{
-          let mods = await module_list.get()
-          let pop = popup(
-            h3("choose a module"),
-            mods.map(m=>{
-              let pp =  p(
-                  button('-', {onclick:()=>{
-                    module_list.update(l=>l.filter(x=>JSON.stringify(x)!=JSON.stringify(m)))
-                    pp.remove()
-                  }}),
-                  button(m.owner,"/", m.name, {onclick:()=>{
-                  current_module.set(m)
-                  pop.remove()
-                }})
-              )
-              return pp
-            })
-          )
-        }
-      })),
+        h2("lexxtract : " + (mod.owner == db.userid ? "" : mod.owner + " / ") + (mod.name || "unnamed module"),
+        share, pickmod, addmod,
+      ),
+      ),
       div(
         style({
           marginTop:"1em",

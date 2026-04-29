@@ -56,7 +56,7 @@ export let cost_tracker = LocalStored<{total:string}>("cost_tracker", {total: St
 
 const load_messages = async(module:Module) => {
 
-  let msg_display = div(style({marginBottom:"3em"}))
+  let msg_display = div(style({marginBottom:"3em", marginTop:"3em"}))
 
   let show_msg = (m:ModelMessage) =>{
     let role = "role" in m ? m.role : "system"
@@ -134,12 +134,21 @@ export const mkAgent = async (module:Module)=>{
   let model = await module.db<string>("current_model", String)
 
   let agent_msgs = await load_messages(module)
+  // let model_picker = div(style({
+  //   position:"sticky",
+  //   background: color.background,
+  //   padding:"0.5em",
+  //   borderRadius:".3em",
+  //   // top:"5em",
+  // }))
+
   let model_picker = div(style({
-    position:"fixed",
+    position:"sticky",
     background: color.background,
     padding:"0.5em",
     borderRadius:".3em",
-    top:"5em",
+    top:"0",
+    alignItems:"center"
   }))
 
   let reset_chat = async () => {
