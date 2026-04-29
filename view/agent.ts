@@ -95,6 +95,7 @@ const load_messages = async(module:Module) => {
       let newel = show_msg((await mm).get())
       el.replaceWith(newel)
       el = newel
+      newel.focus()
     })
     await Promise.all([
       mm.set(msg),
@@ -113,6 +114,10 @@ const load_messages = async(module:Module) => {
     msgs.forEach(m=>{
       let el = show_msg(m)
       msg_display.append(el)
+      // msg_display.scrollTop = msg_display.scrollHeight
+      setTimeout(() => {
+        msg_display.scrollTop = msg_display.scrollHeight
+      }, 1000);
     })
   })
 
@@ -134,13 +139,6 @@ export const mkAgent = async (module:Module)=>{
   let model = await module.db<string>("current_model", String)
 
   let agent_msgs = await load_messages(module)
-  // let model_picker = div(style({
-  //   position:"sticky",
-  //   background: color.background,
-  //   padding:"0.5em",
-  //   borderRadius:".3em",
-  //   // top:"5em",
-  // }))
 
   let model_picker = div(style({
     position:"sticky",
@@ -228,15 +226,15 @@ export const mkAgent = async (module:Module)=>{
     }
   }
 
-  const handle_reponse = (r:{messages:ModelMessage[], cost:number})=>{
-  }
-
   let runagent = (nm:ModelMessage[])=>{
     intake.value = ""
     // model.get().then(mod=>{
       let hint = pre("...")
       chat(nm, model.get(), possibleTools)
       .then(async r=>{
+        cost_tracker.set(
+          {total: String(Number(cost_tracker.get()) || 0 + r.cost)}
+        )
         hint.remove()
         console.log("Model response", r)
         let proms: Promise<void>[] = [];
@@ -265,7 +263,6 @@ export const mkAgent = async (module:Module)=>{
       })
     // })
   }
-
 
   let intake = input({placeholder:"message",
     style:{

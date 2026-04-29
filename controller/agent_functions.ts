@@ -57,7 +57,7 @@ export const default_functions: {[key:string]: FunctionDef} = {
     reads: ["taxonomy"],
     writes: ["taxonomy"],
     code: `
-      return taxonomy.update((t)=>{
+      taxonomy.update((t)=>{
         categoryName ||= "newCat"
         console.log("adding category", categoryName)
         if (t.categories[categoryName]) return t
@@ -79,7 +79,7 @@ export const default_functions: {[key:string]: FunctionDef} = {
     writes: [
       "taxonomy"
     ],
-    code: "return taxonomy.update(t=>{delete t.categories[catName];console.log(t);return t})",
+    code: "taxonomy.update(t=>{delete t.categories[catName];console.log(t);return t})",
   },
   addSubcategory: {
     description: "a function that adds a subcategory to the taxonomy",
@@ -90,7 +90,7 @@ export const default_functions: {[key:string]: FunctionDef} = {
     reads: ["taxonomy"],
     writes: ["taxonomy"],
     code: `
-      return taxonomy.update((t)=>{
+      taxonomy.update((t)=>{
         if (!t.categories[categoryName]) throw new Error("invalid category")
         subcategoryName ||= "newSubcat"
         if (t.categories[categoryName].subCategories[subcategoryName]) return t
@@ -115,7 +115,7 @@ export const default_functions: {[key:string]: FunctionDef} = {
     writes: [
       "taxonomy"
     ],
-    code: "return taxonomy.update(t=>{delete t.categories[catName].subCategories[subCatName];console.log(t);return t})",
+    code: "taxonomy.update(t=>{delete t.categories[catName].subCategories[subCatName];console.log(t);return t})",
   },
   addExtraction: {
     description: "a function that adds an extraction to the extraction db",
@@ -129,14 +129,11 @@ export const default_functions: {[key:string]: FunctionDef} = {
     reads: ["taxonomy", "extraction"],
     writes: ["extraction"],
     code: `
-      return taxonomy.get().then(t=>{
-        if (!t.categories[categoryName] || !t.categories[categoryName].subCategories[subcategoryName]) throw new Error("invalid category or subcategory")
-        return extraction.update(e=>{
-          if (!e[categoryName]) e[categoryName] = {}
-          if (!e[categoryName][subcategoryName]) e[categoryName][subcategoryName] = {}
-          e[categoryName][subcategoryName][title] = {depiction, content}
-          return e
-        })
+      extraction.update(e=>{
+        if (!e[categoryName]) e[categoryName] = {}
+        if (!e[categoryName][subcategoryName]) e[categoryName][subcategoryName] = {}
+        e[categoryName][subcategoryName][title] = {depiction, content}
+        return e
       })
     `
   },
