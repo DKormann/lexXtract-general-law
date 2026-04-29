@@ -1,4 +1,4 @@
-import { stringify, type JsonData, type JSONSchema } from "./struct"
+import { stringify, type JsonData, type JSONSchema } from "./json"
 
 type ConstPattern = string | number | boolean | null
 type PrimitivePattern = StringConstructor | NumberConstructor | BooleanConstructor
@@ -7,6 +7,8 @@ type AnyPattern = {"$any": true}
 
 type ObjectPattern = { [key:string]: Pattern }
 type OpPattern = {"$ref": string} | {"$const": JsonData} | {"$defs": { [key: string]: Pattern}, pattern: Pattern } | AnyPattern | Pattern[]
+
+export const ANY = {"$any": true} as const
 
 
 export type Pattern = ConstPattern | PrimitivePattern | ArrayPattern | ObjectPattern | Pattern[] | OpPattern

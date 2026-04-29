@@ -1,6 +1,6 @@
 
-import { LocalStored } from "../model/helpers";
-import { parse, stringify, type JsonData, type JSONSchema } from "../model/json";
+import { LocalStored } from "./helpers";
+import { parse, stringify, type JsonData, type JSONSchema } from "./json";
 
 
 type ModelResponse = {

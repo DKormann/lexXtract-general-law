@@ -1,6 +1,6 @@
 // import type { FunctionDef } from "../web/agent_functions"
 import type { Stored } from "./db"
-import type { JsonData, JSONSchema, Taxonomy } from "./struct"
+import type { JsonData, JSONSchema, Taxonomy } from "./json"
 import type { Pattern } from "./pattern"
 
 export type Prompt = string

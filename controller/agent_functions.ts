@@ -1,7 +1,7 @@
 import { button, div, errorpopup, h2, h3, p, popup, pre, style } from "../view/html";
 // import { jsonView, viewer } from "../web/viewer";
 import type { Stored } from "../model/db";
-import { stringify, type JsonData, type JSONSchema } from "../model/struct";
+import { stringify, type JsonData, type JSONSchema } from "../model/json";
 import type { FunctionDef, Module } from "../model/types";
 import { fill, fromSchema, SchemaPattern, toSchema, validateSchema, type Pattern } from "../model/pattern";
 

@@ -4,7 +4,7 @@ import { randUser, type Stored } from "../model/db";
 import { hash } from "../model/db";
 import { LocalStored } from "../model/helpers";
 import { chat, localApiKey } from "../controller/request";
-import type { JsonData, JSONSchema, Taxonomy } from "../model/struct";
+import type { JsonData, JSONSchema, Taxonomy } from "../model/json";
 import { ModPath, type FunctionDef, type Module } from "../model/types";
 import { background, body, button, color, display, div, errorpopup, h2, h3, height, input, margin, p, padding, popup, pre, span, style, table, td, textarea, tr, type HTMLArg } from "./html";
 import { jsonView, viewer } from "./viewer";
@@ -326,6 +326,5 @@ let loadUser = async ()=>{
 
 if (typeof window !== "undefined"){
 
-  loadUser()
 }
 

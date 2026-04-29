@@ -1,6 +1,6 @@
 import { LocalStored } from "../model/helpers";
 import { chat, type ModelMessage, type ModelTool } from "../controller/request";
-import { type JsonData } from "../model/struct";
+import { type JsonData } from "../model/json";
 import type { Module } from "../model/types";
 import { mkRunner } from "../controller/agent_functions";
 import { button, color, div, errorpopup, h2, input, p, popup, pre, style, textarea } from "./html";
@@ -217,6 +217,9 @@ export const mkAgent = async (module:Module)=>{
       console.error("Error running tool", e)
       return {error: String(e)}
     }
+  }
+
+  const handle_reponse = (r:{messages:ModelMessage[], cost:number})=>{
   }
 
   let runagent = (nm:ModelMessage[])=>{

@@ -1,6 +1,6 @@
 // import { hash as crypto } from "crypto"
 import { LocalStored, storage } from "./helpers"
-import { stringify, type JsonData } from "./struct"
+import { stringify, type JsonData } from "./json"
 import { DbConnection } from "./module_bindings"
 import { fill, format, toSchema, validate, type Pattern } from "./pattern"
 

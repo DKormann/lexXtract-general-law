@@ -1,7 +1,7 @@
 import { default_functions, FunctionDefPattern } from "./agent_functions";
 import { RemoteDB, type Stored } from "../model/db";
 import { TaxonomyPattern, type Pattern } from "../model/pattern";
-import type { JsonData, Taxonomy } from "../model/struct";
+import type { JsonData, Taxonomy } from "../model/json";
 import { ModPath, type FunctionDef, type Module } from "../model/types";
 
 

@@ -198,6 +198,7 @@ export const popup = (...cs:HTMLArg[])=>{
         zIndex: "2000",
         overflowY: "scroll",
         minWidth: "20vw",
+        maxHeight: "80vh",
       }
     },
     ...cs)
