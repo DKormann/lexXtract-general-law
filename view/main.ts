@@ -23,7 +23,7 @@ location.search.split("&").forEach(param=>{
     try {
       urlrequest = JSON.parse(decodeURIComponent(value)) as ModPath;
       console.log("Module request from URL:", urlrequest)
-      location.search = ""
+      // location.search = ""
     }
     catch(e) {console.error("Failed to parse module from URL", e)}
   }
