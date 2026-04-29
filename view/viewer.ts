@@ -18,6 +18,7 @@ export const jsonView : View = (d, path = [], onclick_):HTMLElement =>{
   }
   let margin = "0.2em"
   if (Array.isArray(d)){
+    if (path.length == 0 && d.length == 0) return div("[]", style({color:color.gray, fontStyle:"italic", margin}))
     return div(d.map((x,i)=>{
       let el = jsonView(x, [...path, i], onclick_)
       el.prepend(span("• ", style({color:color.gray})))
@@ -27,6 +28,7 @@ export const jsonView : View = (d, path = [], onclick_):HTMLElement =>{
   if (typeof d == "string" || typeof d == "number" || d == null) {
     return mkclickable(div(style({color: typeof d == "string" ? color.color : color.blue, margin , whiteSpace:"pre-wrap"}),String(d)))
   }
+  if (path.length == 0 && Object.keys(d).length == 0) return mkclickable(div("{}", style({color:color.gray, fontStyle:"italic", margin})))
   return div(...Object.entries(d).map(([k,v])=>{
     let ch = jsonView(v, [...path, k], onclick_)
     let toggle = button("-", {
@@ -91,6 +93,8 @@ export const viewer = <T extends JsonData>(
       let astext = typeof d == "string"
       let newd = d
       let ta = textarea({oninput:()=>{
+        ta.rows = Math.min(20, Math.max(3, ta.value.split("\n").length));
+
         try{
           console.log(ta.value)
           let v = astext ? ta.value : JSON.parse(ta.value)
@@ -126,17 +130,17 @@ export const viewer = <T extends JsonData>(
 
 
 
- popup(
-  h2("This is a demo of the lexXtract json interface."),
-  div(
-    viewer(
-      {
-        get: ()=>sample,
-        set: async (v)=>{sample = v; listener()},
-        onupdate: (f)=> listener = f,
-        pattern: ANY
-      },
-      jsonView
-    )
-  )
-)
+//  popup(
+//   h2("This is a demo of the lexXtract json interface."),
+//   div(
+//     viewer(
+//       {
+//         get: ()=>sample,
+//         set: async (v)=>{sample = v; listener()},
+//         onupdate: (f)=> listener = f,
+//         pattern: ANY
+//       },
+//       jsonView
+//     )
+//   )
+// )

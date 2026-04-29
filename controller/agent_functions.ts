@@ -66,6 +66,21 @@ export const default_functions: {[key:string]: FunctionDef} = {
       })
       `
   },
+  removeCategory: {
+    description: "remove any Category from the taxonomy",
+    parameters: {
+      catName: {
+        type: "string"
+      }
+    },
+    reads: [
+      "taxonomy"
+    ],
+    writes: [
+      "taxonomy"
+    ],
+    code: "return taxonomy.update(t=>{delete t.categories[catName];console.log(t);return t})",
+  },
   addSubcategory: {
     description: "a function that adds a subcategory to the taxonomy",
     parameters: {
@@ -83,6 +98,24 @@ export const default_functions: {[key:string]: FunctionDef} = {
         return t
       })
       `
+  },
+  removeSubCategory: {
+    description: "remove any SubCategory from the taxonomy",
+    parameters: {
+      catName: {
+        type: "string"
+      },
+      subCatName: {
+        type: "string"
+      }
+    },
+    reads: [
+      "taxonomy"
+    ],
+    writes: [
+      "taxonomy"
+    ],
+    code: "return taxonomy.update(t=>{delete t.categories[catName].subCategories[subCatName];console.log(t);return t})",
   },
   addExtraction: {
     description: "a function that adds an extraction to the extraction db",

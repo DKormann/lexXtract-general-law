@@ -1,6 +1,6 @@
 import { LocalStored } from "../model/helpers";
 import { chat, type ModelMessage, type ModelTool } from "../controller/request";
-import { type JsonData } from "../model/json";
+import { stringify, type JsonData } from "../model/json";
 import type { Module } from "../model/types";
 import { mkRunner } from "../controller/agent_functions";
 import { button, color, div, errorpopup, h2, input, p, popup, pre, style, textarea } from "./html";
@@ -241,7 +241,7 @@ export const mkAgent = async (module:Module)=>{
         for (let msg of r.messages){
           if ("type" in msg && msg.type == "function_call"){
             let p = runtool(msg.name, msg.arguments).then(out=>{
-              let outmsg: ModelMessage = {type: "function_call_output", call_id: msg.call_id, output: JSON.stringify(out)}
+              let outmsg: ModelMessage = {type: "function_call_output", call_id: msg.call_id, output: stringify(out)}
               if (outputs.has(msg.call_id)){
                 outputs.get(msg.call_id)!(outmsg)
               }else{

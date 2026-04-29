@@ -67,7 +67,7 @@ let loadUser = async ()=>{
     const Documents = div(viewer(module.documents), button("+add", {
       onclick:()=>{
           let title = prompt("doc title")
-          if (title) module.documents.set({...module.documents.get() , [title] : ""})
+          if (title) module.documents.set({...module.documents.get() , [title] : "content"})
       }
     }))
   
@@ -250,7 +250,7 @@ let loadUser = async ()=>{
         borderRadius:".3em"
       },
       onclick:()=>{
-        navigator.clipboard.writeText(locstring+"?module="+encodeURIComponent(JSON.stringify(mod)))
+        navigator.clipboard.writeText("https://dkormann.github.io/lexXtract-general-law/"+"?module="+encodeURIComponent(JSON.stringify(mod)))
         share.textContent = "✅copied!"
         setTimeout(() => {share.textContent = "🔗share"}, 1000);
       }})
@@ -325,6 +325,6 @@ let loadUser = async ()=>{
 }
 
 if (typeof window !== "undefined"){
-
+  loadUser()
 }
 
