@@ -107,7 +107,7 @@ const load_messages = async(module:Module) => {
     msgcount.set(0)
     msg_display.replaceChildren()
   }
-
+  
   let get = async ()=>{return Promise.all(Array.from({length: msgcount.get() || 0}, async (_,i)=>(await getmsg(i)).get()))}
 
   get().then(msgs=>{

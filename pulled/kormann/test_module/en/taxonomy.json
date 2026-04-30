@@ -1,0 +1,265 @@
+{
+  "taxonomy": {
+    "title": "test_module",
+    "version": "",
+    "description": "",
+    "categories": [
+      {
+        "id": "cat",
+        "name": "cat",
+        "description": "",
+        "subcategories": [
+          {
+            "id": "cat_sub1",
+            "name": "sub1",
+            "description": "ee",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2019-09/schema",
+              "$id": "https://enterprisetransformationcircle.com/lexXtract/generated/item.schema.json",
+              "title": "item",
+              "description": "Generated extraction item schema.",
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[A-Z0-9]{8}$"
+                },
+                "parent_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "depiction": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": "string"
+                },
+                "taxonomy": {
+                  "type": "object",
+                  "properties": {
+                    "category": {
+                      "type": "string"
+                    },
+                    "subcategory": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "category",
+                    "subcategory"
+                  ],
+                  "additionalProperties": false
+                },
+                "source": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "modified_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "created_by": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "job_id": {
+                      "type": "string"
+                    },
+                    "schema_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "modified_by": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "job_id": {
+                      "type": "string"
+                    },
+                    "schema_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "sort_order": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "links": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "depiction",
+                "content",
+                "taxonomy",
+                "created_at",
+                "created_by"
+              ],
+              "additionalProperties": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "technology",
+        "name": "Technology",
+        "description": "a category",
+        "subcategories": [
+          {
+            "id": "technology_artificial_intelligence",
+            "name": "Artificial Intelligence",
+            "description": "a subcategory",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2019-09/schema",
+              "$id": "https://enterprisetransformationcircle.com/lexXtract/generated/item.schema.json",
+              "title": "item",
+              "description": "Generated extraction item schema.",
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[A-Z0-9]{8}$"
+                },
+                "parent_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "depiction": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": "string"
+                },
+                "taxonomy": {
+                  "type": "object",
+                  "properties": {
+                    "category": {
+                      "type": "string"
+                    },
+                    "subcategory": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "category",
+                    "subcategory"
+                  ],
+                  "additionalProperties": false
+                },
+                "source": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "modified_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "created_by": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "job_id": {
+                      "type": "string"
+                    },
+                    "schema_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "modified_by": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "job_id": {
+                      "type": "string"
+                    },
+                    "schema_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "sort_order": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "links": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "depiction",
+                "content",
+                "taxonomy",
+                "created_at",
+                "created_by"
+              ],
+              "additionalProperties": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

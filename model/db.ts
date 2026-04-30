@@ -1,7 +1,7 @@
 // import { hash as crypto } from "crypto"
 import { LocalStored, storage } from "./helpers"
 import { stringify, type JsonData } from "./json"
-import { DbConnection } from "./module_bindings"
+import { DbConnection, type ErrorContext, type SubscriptionEventContext } from "./module_bindings"
 import { fill, format, toSchema, validate, type Pattern } from "./pattern"
 
 // export const hash = (s:string) => crypto("sha1", s)
@@ -54,7 +54,7 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
   DbConnection.builder()
   .withUri("wss://maincloud.spacetimedb.com/lexxtract")
   .withDatabaseName("lexxtract")
-  .onConnect(c=>{
+  .onConnect((c)=>{
     let localUser = LocalStored<User>("current_user_remote_hashed", User, randUser())
     let pwd = ()=> localUser.get().passhash
 
@@ -86,13 +86,13 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
       },
 
       async get<T extends JsonData>  (key: string, pattern: Pattern, owner?: string) {
-        let schema_key = key + hash(stringify(toSchema(pattern)))
+        // let schema_key = key + hash(stringify(toSchema(pattern)))
         owner ||= db.userid
-        let owner_key = mkkey(owner, schema_key)
+        let owner_key = mkkey(owner, key)
         if (!hot_cache.has(owner_key)){
           let cache:T = await new Promise<T>((rs, rj)=>{
             let sub = c.subscriptionBuilder()
-            .onApplied(c=>{
+            .onApplied((c: SubscriptionEventContext)=>{
               let r= c.db.storage.owner_key.find(owner_key)
               if (!r) return rs(fill(pattern) as T)
               let val = JSON.parse(r.value) as T
@@ -103,10 +103,10 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
               sub.unsubscribe()
               rs(val)
             })
-            .onError(e=>{
-              console.error("DB subscription error", e)
+            .onError((e: ErrorContext)=>{
+              console.error("DB subscription error", e.event ?? e)
               sub.unsubscribe()
-              rj(e)
+              rj(e.event ?? new Error("Unknown DB subscription error"))
             })
             .subscribe(`select * from storage where owner_key = '${owner_key}'`)
           })
@@ -122,8 +122,8 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
             cacheS = newS
             listeners.forEach(l=>l())
             db.saving++;
-            await c.procedures.setitem({owner, passhash: pwd(), key: schema_key, value: JSON.stringify(data)})
-            .then(r=>{
+            await c.procedures.setitem({owner, passhash: pwd(), key, value: JSON.stringify(data)})
+            .then((r)=>{
               db.saving--;
               if (r.tag != "Success"){throw new Error("Failed to set item in DB: " + JSON.stringify(r))}
             })
@@ -148,7 +148,7 @@ export const RemoteDB = async ():Promise<DB> => new Promise((res,err)=>{
       db.signup(randUser())
     })
   })
-  .onConnectError(e=>{
+  .onConnectError((_ctx: ErrorContext, e: Error)=>{
     console.error("Failed to connect to DB", e)
     err(e)
   })

@@ -96,7 +96,7 @@ export const viewer = <T extends JsonData>(
         ta.rows = Math.min(20, Math.max(3, ta.value.split("\n").length));
 
         try{
-          console.log(ta.value)
+
           let v = astext ? ta.value : JSON.parse(ta.value)
           newd = set_path(data.get(),pth,v) as T
           validate(data.pattern, newd)
@@ -109,7 +109,7 @@ export const viewer = <T extends JsonData>(
       ta.cols = 60;
       ta.rows = Math.min(20, Math.max(3, ta.value.split("\n").length));
 
-      let info = p();
+      let info = p(style({width:"80vw", height:"5em", overflow:"auto", color:color.red}));
       let pop = popup(
         h2("Edit value"),
         h3("Path: "+pth.join(".")),

@@ -1,0 +1,880 @@
+{
+  "taxonomy": {
+    "title": "FiDA and Related Laws",
+    "version": "6.2",
+    "description": "A classification system for the Financial Data Access (FiDA) regulation framework with embedded AI extraction logic and few-shot examples.",
+    "categories": [
+      {
+        "id": "milestones",
+        "name": "Milestones",
+        "subcategories": [
+          {
+            "id": "milestones_eu",
+            "name": "EU",
+            "description": "In this subcategory, we include all FiDA related milestones that have been issued on EU level via the FiDA regulation, and related legal sources.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Clauses defining dates or time-bound obligations originating from EU-level bodies.",
+              "positive_signals": [
+                "entry into force",
+                "date of application",
+                "by [Date]",
+                "months following publication"
+              ],
+              "negative_constraints": [
+                "National transposition dates",
+                "Scheme-specific deadlines"
+              ],
+              "disambiguation_logic": "If the milestone refers to a member state's specific deadline, map to 'National'.",
+              "golden_examples": [
+                "This Regulation shall enter into force on the twentieth day following that of its publication in the Official Journal.",
+                "Data holders shall make data available... 18 months after the entry into force of this Regulation."
+              ]
+            }
+          },
+          {
+            "id": "milestones_national",
+            "name": "National",
+            "description": "In this subcategory, we include all FiDA related milestones that have been issued on the level of national jurisdiction.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Deadlines or timelines specific to member state implementation.",
+              "positive_signals": [
+                "transposition deadline",
+                "national implementation date",
+                "local entry into force"
+              ],
+              "negative_constraints": [
+                "EU-wide application dates"
+              ],
+              "disambiguation_logic": "Must reference a specific country or 'Member States shall' in the context of local transposition.",
+              "golden_examples": [
+                "Member States shall adopt and publish the laws, regulations and administrative provisions necessary to comply with this Directive by 17 January 2026."
+              ]
+            }
+          },
+          {
+            "id": "milestones_local_regulators",
+            "name": "Local regulators",
+            "description": "In this subcategory, we include all FiDA related milestones that have been issued on the level of local regulators.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Dates set by specific National Competent Authorities (NCAs).",
+              "positive_signals": [
+                "BaFin deadline",
+                "FSA timeline",
+                "competent authority schedule"
+              ],
+              "negative_constraints": [
+                "Statutory EU dates"
+              ],
+              "disambiguation_logic": "Focus on administrative deadlines set by the regulator.",
+              "golden_examples": [
+                "The Competent Authority shall designate the Financial Data Sharing Schemes by 31 December 2025."
+              ]
+            }
+          },
+          {
+            "id": "milestones_schemes",
+            "name": "Schemes",
+            "description": "In this subcategory, we include all FiDA related milestones that have been issued by schemes.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Operational deadlines set by a Financial Data Sharing Scheme (FDSS).",
+              "positive_signals": [
+                "scheme rollout",
+                "api go-live",
+                "migration window"
+              ],
+              "negative_constraints": [
+                "Legal statutory deadlines"
+              ],
+              "disambiguation_logic": "Contractual/operational milestones found in Scheme Rulebooks.",
+              "golden_examples": [
+                "All Scheme Members must upgrade to API version 2.1 by 1st September."
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "scheme_participation_rules",
+        "name": "Scheme participation",
+        "subcategories": [
+          {
+            "id": "scheme_formation",
+            "name": "Scheme formation",
+            "description": "In this subcategory, we include all rules that define how schemes are created.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Rules for the genesis and authorization of the Scheme entity.",
+              "positive_signals": [
+                "application for authorization",
+                "governance modalities",
+                "representation requirements"
+              ],
+              "negative_constraints": [
+                "Rules for companies joining an existing scheme"
+              ],
+              "disambiguation_logic": "CREATING the club vs. JOINING the club.",
+              "golden_examples": [
+                "Financial data sharing schemes shall be subject to authorization by the competent authority.",
+                "The application for authorization shall contain the governance modalities of the scheme."
+              ]
+            }
+          },
+          {
+            "id": "scheme_access",
+            "name": "Scheme access",
+            "description": "In this subcategory, we include all rules that define how regulated companies enter a scheme.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Rules for Data Holders/Users to become members.",
+              "positive_signals": [
+                "obligation to join",
+                "membership criteria",
+                "non-discrimination"
+              ],
+              "negative_constraints": [
+                "Technical API specs",
+                "Internal governance of the scheme"
+              ],
+              "disambiguation_logic": "Gatekeeper rules—who gets in and how.",
+              "golden_examples": [
+                "Data holders shall be obliged to join the financial data sharing scheme.",
+                "Membership in the scheme shall be open to all data users on non-discriminatory terms."
+              ]
+            }
+          },
+          {
+            "id": "scheme_management",
+            "name": "Scheme management",
+            "description": "In this subcategory, we capture all obligations that the scheme must fulfil to manage and govern itself.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Obligations falling on the 'Scheme Manager'.",
+              "positive_signals": [
+                "scheme shall publish",
+                "annual report of the scheme",
+                "transparency of the scheme"
+              ],
+              "negative_constraints": [
+                "Obligations of individual members"
+              ],
+              "disambiguation_logic": "Subject must be the Scheme/Manager.",
+              "golden_examples": [
+                "The scheme shall publish an annual report on its operations.",
+                "The scheme shall maintain a website listing all its members."
+              ]
+            }
+          },
+          {
+            "id": "scheme_misc",
+            "name": "Misc scheme",
+            "description": "In this subcategory, we include all rules about schemes that are not related to formation, access, or management.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Fallback scheme rules.",
+              "positive_signals": [
+                "dissolution",
+                "merger"
+              ],
+              "negative_constraints": [
+                "Formation",
+                "Access",
+                "Management"
+              ],
+              "disambiguation_logic": "Fallback.",
+              "golden_examples": [
+                "In the event of dissolution, the scheme shall notify the competent authority."
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "customer_facing_rules",
+        "name": "Customer facing rules",
+        "subcategories": [
+          {
+            "id": "dashboard",
+            "name": "Dashboard",
+            "description": "Rules regarding the creation and operation of a customer dashboard.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Permission Dashboard interface requirements.",
+              "positive_signals": [
+                "dashboard interface",
+                "overview of permissions",
+                "history of access"
+              ],
+              "negative_constraints": [
+                "Active consent requests (Workflows)"
+              ],
+              "disambiguation_logic": "Static view/settings menu.",
+              "golden_examples": [
+                "Data holders shall provide customers with a permission dashboard to monitor their data sharing.",
+                "The dashboard shall allow the customer to view a history of all permissions granted."
+              ]
+            }
+          },
+          {
+            "id": "data_management",
+            "name": "Data management",
+            "description": "In this subcategory, we include all rules governing how regulated companies must manage customer data.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Internal handling and permissible use.",
+              "positive_signals": [
+                "processing of data",
+                "data minimization",
+                "purpose limitation"
+              ],
+              "negative_constraints": [
+                "Transmission (Exchange)",
+                "Dashboard UI"
+              ],
+              "disambiguation_logic": "Handling vs. Sending.",
+              "golden_examples": [
+                "Data users shall only process financial data for the purposes for which the customer has granted permission.",
+                "Data holders shall not use the data for advertising purposes without explicit consent."
+              ]
+            }
+          },
+          {
+            "id": "data_quality",
+            "name": "Data quality",
+            "description": "In this subcategory, we include all rules that define how regulated companies must manage the quality of customer data.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Accuracy and currency.",
+              "positive_signals": [
+                "accuracy",
+                "completeness",
+                "up-to-date",
+                "correction mechanism"
+              ],
+              "negative_constraints": [
+                "General GDPR"
+              ],
+              "disambiguation_logic": "Integrity of payload.",
+              "golden_examples": [
+                "Data holders shall ensure that the data made available is accurate and up-to-date.",
+                "Customers shall have the right to request the correction of inaccurate data."
+              ]
+            }
+          },
+          {
+            "id": "permission_workflows",
+            "name": "Permission workflows",
+            "description": "Rules regarding notifications and interactions to grant or withdraw permission.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Dynamic flow of requesting/revoking access.",
+              "positive_signals": [
+                "request for permission",
+                "explicit consent",
+                "withdrawal mechanism"
+              ],
+              "negative_constraints": [
+                "Dashboard list view"
+              ],
+              "disambiguation_logic": "The process of clicking Yes/No.",
+              "golden_examples": [
+                "Data users shall obtain the explicit permission of the customer before accessing data.",
+                "The customer shall be able to withdraw permission at any time with the same ease as granting it."
+              ]
+            }
+          },
+          {
+            "id": "data_exchange",
+            "name": "Data exchange",
+            "description": "In this subcategory, we include all rules that describe how regulated companies must exchange data on behalf of the customer.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Mechanism of transfer.",
+              "positive_signals": [
+                "API standards",
+                "interface availability",
+                "latency",
+                "standardized format"
+              ],
+              "negative_constraints": [
+                "Visual display (Dashboard)"
+              ],
+              "disambiguation_logic": "Technical connectivity rules.",
+              "golden_examples": [
+                "Data holders shall make data available via a secure application programming interface (API).",
+                "The interface shall ensure a maximum latency of 200ms."
+              ]
+            }
+          },
+          {
+            "id": "misc_customer",
+            "name": "Misc customer",
+            "description": "Rules directly related to interaction with the customer not covered elsewhere.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "General customer protection.",
+              "positive_signals": [
+                "customer complaints",
+                "redress"
+              ],
+              "negative_constraints": [
+                "Data-specific handling"
+              ],
+              "disambiguation_logic": "Fallback.",
+              "golden_examples": [
+                "Financial information service providers shall establish efficient procedures for the handling of customer complaints."
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "misc_rules",
+        "name": "Misc rules",
+        "subcategories": [
+          {
+            "id": "misc_rules_gov_reporting",
+            "name": "Governance & reporting",
+            "description": "Internal governance and reporting.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Internal corporate governance.",
+              "positive_signals": [
+                "internal audit",
+                "strategy document",
+                "compliance function"
+              ],
+              "negative_constraints": [
+                "Reporting TO a regulator"
+              ],
+              "disambiguation_logic": "Internal vs. External reporting.",
+              "golden_examples": [
+                "The management body shall define and oversee the implementation of the data governance strategy.",
+                "Regulated entities shall establish an independent internal audit function."
+              ]
+            }
+          },
+          {
+            "id": "misc_rules_operational", 
+            "name": "Operational",
+            "description": "Business processes and IT systems supporting FiDA compliance.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Back-office IT and resilience.",
+              "positive_signals": [
+                "business continuity",
+                "disaster recovery",
+                "ICT security"
+              ],
+              "negative_constraints": [
+                "Customer-facing UI"
+              ],
+              "disambiguation_logic": "Plumbing: servers, security, resilience.",
+              "golden_examples": [
+                "Data holders shall have in place a business continuity plan to ensure the availability of data.",
+                "Appropriate technical and organizational measures shall be taken to ensure the security of data transmission."
+              ]
+            }
+          },
+          {
+            "id": "misc_rules_official_bodies",
+            "name": "Official bodies",
+            "description": "Rules defined by official bodies and obligations to interact with them.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Obligations regarding interaction WITH regulators.",
+              "positive_signals": [
+                "reporting to the competent authority",
+                "cooperation with the authority"
+              ],
+              "negative_constraints": [
+                "Definitions OF the authority"
+              ],
+              "disambiguation_logic": "What you send them vs. Who they are.",
+              "golden_examples": [
+                "Data holders shall report any major incident to the competent authority without undue delay.",
+                "Regulated entities shall provide the competent authority with all information necessary for supervision."
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "enforcement",
+        "name": "Enforcement",
+        "subcategories": [
+          {
+            "id": "enforcement_misc",
+            "name": "Misc enforcement",
+            "description": "In this subcategory, we list all enforcement measures that are neither penalties nor administrative measures.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Other enforcement mechanisms.",
+              "positive_signals": [
+                "remedial actions",
+                "investigative measures"
+              ],
+              "negative_constraints": [
+                "Standard fines",
+                "Standard bans"
+              ],
+              "disambiguation_logic": "Fallback for sui generis tools.",
+              "golden_examples": [
+                "The authority may request any information necessary to verify compliance."
+              ]
+            }
+          },
+          {
+            "id": "enforcement_admin_measures",
+            "name": "Administrative measures",
+            "description": "This subcategory describes administrative measures that may be imposed on regulated companies.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Non-monetary regulatory interventions.",
+              "positive_signals": [
+                "cease and desist",
+                "public statement",
+                "withdrawal of authorization",
+                "temporary ban"
+              ],
+              "negative_constraints": [
+                "Fines"
+              ],
+              "disambiguation_logic": "Actions that restrict operations or name/shame.",
+              "golden_examples": [
+                "The competent authority may issue an order requiring the natural or legal person to cease the conduct.",
+                "A public statement indicating the identity of the natural or legal person and the nature of the infringement."
+              ]
+            }
+          },
+          {
+            "id": "enforcement_penalties",
+            "name": "Penalties",
+            "description": "This subcategory describes penalties that may be imposed on regulated companies if they fail to comply.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/rule.schema.json",
+              "path": "someFilePath/rule.schema.json",
+              "type": "rule",
+              "type_name": "Rule"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Quantitative financial sanctions and fines.",
+              "positive_signals": [
+                "administrative fines",
+                "percentage of total worldwide turnover",
+                "periodic penalty payments"
+              ],
+              "negative_constraints": [
+                "Non-monetary warnings",
+                "Civil liability damages"
+              ],
+              "disambiguation_logic": "Money paid to the state/regulator.",
+              "golden_examples": [
+                "Administrative fines of up to 2% of the total worldwide annual turnover.",
+                "Periodic penalty payments shall be imposed for each day of non-compliance."
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "scope",
+        "name": "Scope",
+        "subcategories": [
+          {
+            "id": "regulated_sectors",
+            "name": "Regulated sectors",
+            "description": "You are given a fixed list of 16 predefined regulated sector items.\n\nYour task is to assign content from the source text to each of these items.\n\nIMPORTANT:\n- You must use exactly the item names as provided below.\n- Do not create, modify, merge, split, or rename any items.\n- Do not output any items that are not in the list.\n- Treat the list as fixed labels, not as concepts to reinterpret.\n\nFor each item:\n- Determine whether it is in scope based on the source text.\n- Base your decision only on the text.\n- If no relevant information is found, leave it empty or mark it as not in scope.\n\nItems (fixed labels):\n- Credit Institution\n- Payment Institution\n- Electronic Money Institution\n- Investment Firm\n- Manager of Alternative Investment Funds (AIFM)\n- UCITS Management Company\n- Credit Rating Agency\n- Crowdfunding Service Provider\n- Insurance Undertaking\n- Reinsurance Undertaking\n- Insurance Intermediary\n- Ancillary Insurance Intermediary\n- Institution for Occupational Retirement Provision (IORP)\n- PEPP Provider\n- Crypto-Asset Service Provider (CASP)\n- Issuer of Asset-Referenced Tokens\n\nBefore answering, verify that your output contains only these exact item names.",
+      			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/scope_item.schema.json",
+              "path": "someFilePath/regulated_sector.schema.json",
+              "type": "regulated_sector",
+              "type_name": "Regulated Sector"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Definition of liable entities.",
+              "positive_signals": [
+                "Credit Institution",
+                "Payment Institution",
+                "Crypto-Asset Service Provider (CASP)"
+              ],
+              "negative_constraints": [
+                "Data definitions"
+              ],
+              "disambiguation_logic": "WHO is regulated.",
+              "golden_examples": [
+                "This Regulation applies to the following entities: credit institutions, payment institutions..."
+              ]
+            }
+          },
+          {
+            "id": "scope_included_data",
+            "name": "Included data",
+            "description": "Which data falls within the scope.",
+			      "schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/scope_item.schema.json",
+              "path": "someFilePath/scope_item.schema.json",
+              "type": "scope_item",
+              "type_name": "Scope Item"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Definition of in-scope data payloads.",
+              "positive_signals": [
+                "mortgage data",
+                "savings accounts",
+                "investments"
+              ],
+              "negative_constraints": [
+                "Entity definitions"
+              ],
+              "disambiguation_logic": "WHAT data is regulated.",
+              "golden_examples": [
+                "This Regulation applies to the following categories of data: data on mortgage credit agreements, loans, and accounts."
+              ]
+            }
+          },
+          {
+            "id": "scope_excluded_data",
+            "name": "Excluded data",
+            "description": "Data categories explicitly excluded from scope.",
+      			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/scope_item.schema.json",
+              "path": "someFilePath/scope_item.schema.json",
+              "type": "scope_item",
+              "type_name": "Scope Item"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Negative scope definitions.",
+              "positive_signals": [
+                "shall not apply to",
+                "excludes"
+              ],
+              "negative_constraints": [
+                "General inclusions"
+              ],
+              "disambiguation_logic": "Explicit exclusions.",
+              "golden_examples": [
+                "This Regulation shall not apply to data related to sickness and health insurance."
+              ]
+            }
+          },
+          {
+            "id": "scope_misc",
+            "name": "Misc scope",
+            "description": "Rules delineating scope not covered by sectors or data.",
+	       		"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/scope_item.schema.json",
+              "path": "someFilePath/scope_item.schema.json",
+              "type": "scope_item",
+              "type_name": "Scope Item"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Geographic or temporal scope.",
+              "positive_signals": [
+                "territorial scope"
+              ],
+              "negative_constraints": [
+                "Sectors",
+                "Data"
+              ],
+              "disambiguation_logic": "Fallback.",
+              "golden_examples": [
+                "This Regulation applies to data holders established in the Union."
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "glossary",
+        "name": "Glossary",
+        "subcategories": [
+          {
+            "id": "glossary_definitions",
+            "name": "Definitions",
+            "description": "Terms explicitly defined in the FiDA regulation.",
+            "schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/definition.schema.json",
+              "path": "someFilePath/definition.schema.json",
+              "type": "definition",
+              "type_name": "Definition"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Statutory definitions.",
+              "positive_signals": [
+                "means...",
+                "definition",
+                "Article 3"
+              ],
+              "negative_constraints": [
+                "Operational rules"
+              ],
+              "disambiguation_logic": "Definition text only.",
+              "golden_examples": [
+                "'Customer' means a natural or legal person who makes use of a financial product."
+              ]
+            }
+          },
+          {
+            "id": "glossary_roles",
+            "name": "Roles",
+            "description": "Descriptions of data holder, data user, and FISP.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/role.schema.json",
+              "path": "someFilePath/role.schema.json",
+              "type": "role",
+              "type_name": "Role"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Definitions of the three main actors.",
+              "positive_signals": [
+                "Data Holder means",
+                "Data User means"
+              ],
+              "negative_constraints": [
+                "General definitions"
+              ],
+              "disambiguation_logic": "Specific actors.",
+              "golden_examples": [
+                "'Data holder' means a financial institution that collects, stores and otherwise processes customer data."
+              ]
+            }
+          },
+          {
+            "id": "glossary_official_bodies",
+            "name": "Official bodies",
+            "description": "Descriptions of official bodies.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/official_body.schema.json",
+              "path": "someFilePath/official_body.schema.json",
+              "type": "official_body",
+              "type_name": "Official Body"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Descriptions of Authorities.",
+              "positive_signals": [
+                "European Banking Authority",
+                "Competent Authority"
+              ],
+              "negative_constraints": [
+                "Reporting obligations (Misc Rules)"
+              ],
+              "disambiguation_logic": "Who they are vs. What you send.",
+              "golden_examples": [
+                "The European Banking Authority (EBA) is an independent EU authority which works to ensure effective and consistent prudential regulation."
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "legal_sources",
+        "name": "Legal sources",
+        "subcategories": [
+          {
+            "id": "legal_sources_eu_fida",
+            "name": "EU FiDA",
+            "description": "The FiDA regulation proposal itself (COM(2023) 360 final). This subcategory contains only the Financial Data Access Regulation.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/referenced_source.schema.json",
+              "path": "someFilePath/referenced-source.schema.json",
+              "type": "referenced-source",
+              "type_name": "Legal Source"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "The FiDA regulation proposal document only.",
+              "positive_signals": [
+                "Financial Data Access Regulation",
+                "FiDA",
+                "COM(2023) 360"
+              ],
+              "negative_constraints": [
+                "Other EU regulations",
+                "Other EU directives"
+              ],
+              "disambiguation_logic": "Only the FiDA regulation proposal belongs here. All other EU-level laws go to 'other_laws'.",
+              "golden_examples": [
+                "Proposal for a Regulation of the European Parliament and of the Council on a framework for Financial Data Access (FiDA)."
+              ]
+            }
+          },
+          {
+            "id": "legal_sources_member_state",
+            "name": "Member state",
+            "description": "Legislation of member states.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/referenced_source.schema.json",
+              "path": "someFilePath/referenced-source.schema.json",
+              "type": "referenced-source",
+              "type_name": "Legal Source"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Metadata of National texts.",
+              "positive_signals": [
+                "Act",
+                "Law",
+                "Code"
+              ],
+              "negative_constraints": [
+                "EU laws"
+              ],
+              "disambiguation_logic": "Country specific.",
+              "golden_examples": [
+                "German Payment Services Supervision Act (ZAG)."
+              ]
+            }
+          },
+          {
+            "id": "legal_sources_schemes",
+            "name": "Schemes",
+            "description": "Legal sources issued at scheme level.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/referenced_source.schema.json",
+              "path": "someFilePath/referenced-source.schema.json",
+              "type": "referenced-source",
+              "type_name": "Legal Source"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Metadata of Scheme Rulebooks.",
+              "positive_signals": [
+                "Rulebook",
+                "Terms of Reference"
+              ],
+              "negative_constraints": [
+                "Statutory laws"
+              ],
+              "disambiguation_logic": "Scheme generated.",
+              "golden_examples": [
+                "SEPA Payment Account Access Scheme Rulebook v1.0."
+              ]
+            }
+          },
+          {
+            "id": "legal_sources_other_laws",
+            "name": "Other laws",
+            "description": "List of other documents used.",
+			"schema": {
+              "id": "https://enterprisetransformationcircle.com/lexXtract/fida/referenced_source.schema.json",
+              "path": "someFilePath/referenced-source.schema.json",
+              "type": "referenced-source",
+              "type_name": "Legal Source"
+            },
+            "ai_extraction_instructions": {
+              "extraction_scope": "Cross-referenced legislation.",
+              "positive_signals": [
+                "GDPR",
+                "DORA",
+                "PSD2"
+              ],
+              "negative_constraints": [
+                "FiDA text"
+              ],
+              "disambiguation_logic": "External laws.",
+              "golden_examples": [
+                "Regulation (EU) 2016/679 (General Data Protection Regulation)."
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

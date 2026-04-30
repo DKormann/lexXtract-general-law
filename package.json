@@ -4,7 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "vite",
+    "pull_module": "node scripts/pull_module.js",
     "build": "vite build"
+  },
+  "dependencies": {
+    "spacetimedb": "^2.1.0"
   },
   "devDependencies": {
     "@types/bun": "latest",
